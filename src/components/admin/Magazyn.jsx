@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { database, ref, get, push, remove, update } from '../../FirebaseConfig';
 import Navbar from './Navbar';
 import styles from "./Magazyn.module.css";
+
 function Magazyn() {
   const [items, setItems] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -10,6 +11,7 @@ function Magazyn() {
   const [quantity, setQuantity] = useState(0);
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
+  const [bonus, setBonus] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -52,6 +54,7 @@ function Magazyn() {
       quantity: Number(quantity),
       brand,
       model,
+      bonus: Number(bonus),
       createdAt: new Date().toISOString(),
     };
 
@@ -62,11 +65,13 @@ function Magazyn() {
       await push(ref(database, `magazyn/${selectedLocation}`), newItem);
     }
 
+    // Reset form
     setType('Folia');
     setColor('');
     setQuantity(0);
     setBrand('');
     setModel('');
+    setBonus(0);
     setShowForm(false);
     fetchStock();
   };
@@ -82,8 +87,16 @@ function Magazyn() {
     setQuantity(item.quantity);
     setBrand(item.brand || '');
     setModel(item.model || '');
+    setBonus(item.bonus || 0);
     setEditingId(item.id);
     setShowForm(true);
+  };
+
+  const handleBonusChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setBonus(value);
+    }
   };
 
   return (
@@ -114,6 +127,7 @@ function Magazyn() {
             setQuantity(0);
             setBrand('');
             setModel('');
+            setBonus(0);
           }}
           className={`${styles.button} ${styles.addButton}`}
         >
@@ -166,6 +180,15 @@ function Magazyn() {
                 className={styles.input}
               />
             </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Premia:</label>
+              <input
+                type="text"
+                value={bonus}
+                onChange={handleBonusChange}
+                className={styles.input}
+              />
+            </div>
             <button onClick={handleAdd} className={`${styles.button} ${styles.saveButton}`}>
               {editingId ? 'Zapisz zmiany' : 'Zapisz'}
             </button>
@@ -180,6 +203,7 @@ function Magazyn() {
               <th>Marka</th>
               <th>Model</th>
               <th>Ilość</th>
+              <th>Premia</th>
               <th>Akcje</th>
             </tr>
           </thead>
@@ -191,6 +215,7 @@ function Magazyn() {
                 <td className={styles.tableCell}>{item.brand || '-'}</td>
                 <td className={styles.tableCell}>{item.model || '-'}</td>
                 <td className={styles.tableCell}>{item.quantity}</td>
+                <td className={styles.tableCell}>{item.bonus ? `${item.bonus} zł` : '-'}</td>
                 <td className={styles.tableCell}>
                   <button onClick={() => handleEdit(item)} className={`${styles.button} ${styles.editButton}`}>
                     Edytuj

@@ -8,6 +8,8 @@ import UserMainPage from './components/user/MainPage';
 import Magazyn from './components/admin/Magazyn';
 import OtworzStanowisko from './components/user/OtworzStanowisko';
 import Punkty from './components/admin/Punkty';
+import DodajUsluge from './components/user/DodajUsluge';
+import Premie from './components/admin/Premie';
 import "./App.css";
 
 function App() {
@@ -235,7 +237,9 @@ function App() {
       <Route path="/user" element={<UserMainPage />} />
       <Route path="/admin/magazyn" element={<Magazyn />} />
       <Route path="/admin/punkty" element={<Punkty />} />
+      <Route path="/admin/premie" element={<Premie />} />
       <Route path="/user/otworz-stanowisko" element={<OtworzStanowisko />} />
+      <Route path="/user/dodaj-usluge" element={<DodajUsluge />} />
     </Routes>
   );
 }

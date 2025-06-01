@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, remove, get, update, push } from "firebase/database";
+import { getDatabase, ref, set, onValue, remove, get, update, push, child } from "firebase/database";
 
 const firebaseConfig = {
   databaseURL: "https://gsm-pl-b0b33-default-rtdb.europe-west1.firebasedatabase.app/",
@@ -16,5 +16,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-export { database, get, ref, set, onValue, remove, update, push };
+export { database, get, ref, set, onValue, remove, update, push, child };
 
