@@ -1,0 +1,125 @@
+/* Reset i typografia */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+body, html {
+  height: 100%;
+  background-color: #f5f6f8;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Kontener aplikacji */
+.app-container {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Tytuł */
+.form-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #202124;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+/* Grupa formularza */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* Etykiety */
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #3c4043;
+}
+
+/* Inputy i selecty */
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #202124;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: #1a73e8;
+}
+
+/* Błąd */
+.form-error {
+  color: #d93025;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  margin-top: -10px;
+}
+
+/* Przycisk */
+.submit-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-button:hover {
+  background-color: #1765cc;
+}
+
+/* Przełącznik trybu */
+.switch-text {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #5f6368;
+  text-align: center;
+}
+
+.switch-link {
+  color: #1a73e8;
+  cursor: pointer;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.switch-link:hover {
+  text-decoration: underline;
+}
+
+/* Błąd routera */
+.error-message {
+  color: #d93025;
+  background-color: #fce8e6;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #f28b82;
+  font-weight: 500;
+  text-align: center;
+  max-width: 400px;
+}
