@@ -1,0 +1,381 @@
+.wrapper {
+    max-width: 980px;
+    margin: 24px auto;
+    padding: 0 16px;
+  }
+  
+  .title {
+    font-size: 28px;
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .card {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+  
+  .sectionTitle {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+  
+  .label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  
+  .input {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    padding: 0 12px;
+    outline: none;
+  }
+  
+  .input:focus {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  @media (max-width: 720px) {
+    .grid2 {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .itemsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  @media (max-width: 920px) {
+    .itemsGrid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .item {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .itemHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .itemName {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.95);
+  }
+  
+  .itemPrice {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+  
+  .qty {
+    width: 120px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    padding: 0 10px;
+    outline: none;
+  }
+  
+  .qty:focus {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  
+  .summary {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  @media (max-width: 860px) {
+    .summary {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .summaryLeft {
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .summaryTitle {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .summaryList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .summaryRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  
+  .summaryRight {
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  
+  .totalLabel {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+  
+  .totalValue {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 4px;
+  }
+  
+  .muted {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+  
+  .calendarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  
+  .calendarWrap {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  
+  /* react-big-calendar ma swoje style; tu tylko kosmetyka */
+  .calendarWrap :global(.rbc-toolbar) {
+    padding: 10px;
+    margin-bottom: 0;
+  }
+  
+  .calendarWrap :global(.rbc-toolbar button) {
+    border-radius: 10px;
+  }
+  
+  .calendarWrap :global(.rbc-month-view),
+  .calendarWrap :global(.rbc-time-view) {
+    background: transparent;
+  }
+  
+  .calendarWrap :global(.rbc-off-range-bg) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  
+  .enabledDay {
+  }
+  
+  .disabledDay {
+    opacity: 0.55;
+    filter: grayscale(25%);
+    cursor: not-allowed;
+  }
+  
+  .reservedEvent {
+    opacity: 0.9;
+    font-weight: 700;
+  }
+  
+  .pickedBar {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  
+  @media (max-width: 860px) {
+    .pickedBar {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .pickedLabel {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+  
+  .pickedValue {
+    margin-top: 4px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 700;
+  }
+  
+  .hours {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .hourBtn {
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+  }
+  
+  .hourBtn:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+  
+  .hourBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  
+  .hourBtnActive {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    font-weight: 800;
+  }
+  
+  .notice {
+    margin-top: 10px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.70);
+  }
+  
+  .dotFree,
+  .dotBusy,
+  .dotDisabled {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  
+  .dotFree {
+    background: rgba(255, 255, 255, 0.65);
+  }
+  
+  .dotBusy {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  
+  .dotDisabled {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  
+  .alert {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+  
+  .alertError {
+    background: rgba(255, 0, 80, 0.12);
+    border-color: rgba(255, 0, 80, 0.22);
+    color: rgba(255, 255, 255, 0.95);
+  }
+  
+  .alertInfo {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.90);
+  }
+  
+  .submit {
+    height: 46px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.14);
+    color: white;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+  }
+  
+  .submit:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  
+  .submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .smallPrint {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+    margin-top: -6px;
+  }
