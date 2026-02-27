@@ -11,6 +11,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import plLocale from "@fullcalendar/core/locales/pl";
 
 // Helpers
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -635,7 +636,18 @@ export default function CleaningForm() {
               <div className={styles.calendarWrapper}>
                 <FullCalendar
                   plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  locale={plLocale}
                   initialView="dayGridMonth"
+                  buttonText={{
+                    today: "Dziś",
+                    month: "Miesiąc",
+                    week: "Tydzień",
+                    day: "Dzień",
+                    list: "Lista",
+                  }}
+                  allDayText="Cały dzień"
+                  moreLinkText={(n) => `+${n} więcej`}
+                  noEventsText="Brak wydarzeń"
                   headerToolbar={{
                     left: "prev,next today",
                     center: "title",
@@ -657,7 +669,6 @@ export default function CleaningForm() {
                     if (d < startOfToday()) classes.push(styles.calendarDayCellPast);
                     if (reservedDateKeys.has(key)) classes.push(styles.calendarDayCellReserved);
                     if (selectedDateKey && key === selectedDateKey) classes.push(styles.calendarDayCellSelected);
-
                     if (!isDateSelectable(arg.date)) classes.push(styles.calendarDayCellDisabled);
 
                     return classes;
@@ -710,24 +721,8 @@ export default function CleaningForm() {
             >
               {submitting ? "Rezerwuję…" : "Zamów usługę"}
             </button>
-
-            <div className={styles.submitHint}>
-              <span className={styles.submitHintText}>
-                Po rezerwacji: zapis do Firebase → localStorage reserved=true → przekierowanie na “/”.
-              </span>
-            </div>
           </div>
         </form>
-
-        <footer className={styles.cleaningFormFooter}>
-          <div className={styles.footerNote}>
-            <span className={styles.footerNoteTitle}>Uwaga:</span>{" "}
-            <span className={styles.footerNoteText}>
-              Jeśli ktoś zarezerwuje wybrany dzień w trakcie wypełniania formularza, przy finalizacji dostaniesz
-              komunikat i musisz wybrać inny termin.
-            </span>
-          </div>
-        </footer>
       </div>
     </div>
   );
