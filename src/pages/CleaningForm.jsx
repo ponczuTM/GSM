@@ -2,21 +2,27 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./CleaningForm.module.css";
+
 // Firebase (two imports: your wrapper + runTransaction from SDK)
 import { database, ref, onValue, get, set, push, remove } from "../FirebaseConfig";
 import { runTransaction } from "firebase/database";
 
-// FullCalendar (wymagane paczki: @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction)
+// FullCalendar
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import plLocale from "@fullcalendar/core/locales/pl";
 
+// ICONS
+import singleWindow from "../assets/images/singleWindow.png";
+import doubleWindow from "../assets/images/doubleWindow.png";
+import balconyDoor from "../assets/images/balconyDoor.png";
+import largeGlass from "../assets/images/largeGlass.png";
+
 // Helpers
 const pad2 = (n) => String(n).padStart(2, "0");
 const toDateKey = (dateObj) => {
-  // YYYY-MM-DD (local)
   const y = dateObj.getFullYear();
   const m = pad2(dateObj.getMonth() + 1);
   const d = pad2(dateObj.getDate());
@@ -33,9 +39,7 @@ const HOURS = ["16:30", "17:00", "17:30", "18:00"];
 const PRICE = {
   singleStandard: 30,
   doubleStandard: 60,
-  singleBig: 45,
-  doubleBig: 90,
-  balconyDoor: 60,
+  balconyDoor: 70,
   largeGlassPerM2: 8,
 };
 
@@ -48,17 +52,18 @@ const clampInt = (value, min = 0, max = 999) => {
 export default function CleaningForm() {
   const navigate = useNavigate();
 
+  // ✅ NEW: global success overlay after refresh
+  const [showReservedToast, setShowReservedToast] = useState(false);
+
   // Client fields
   const [clientName, setClientName] = useState("");
   const [clientSurname, setClientSurname] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientMail, setClientMail] = useState("");
 
-  // Quantities
+  // Quantities (bez DUŻYCH okien)
   const [singleStandardWindowQuantity, setSingleStandardWindowQuantity] = useState(0);
   const [doubleStandardWindowQuantity, setDoubleStandardWindowQuantity] = useState(0);
-  const [singleBigWindowQuantity, setSingleBigWindowQuantity] = useState(0);
-  const [doubleBigWindowQuantity, setDoubleBigWindowQuantity] = useState(0);
   const [balconyDoorsQuantity, setBalconyDoorsQuantity] = useState(0);
   const [largeGlassMetersQuantity, setLargeGlassMetersQuantity] = useState(0); // m2
 
@@ -66,7 +71,7 @@ export default function CleaningForm() {
   const [selectedDateKey, setSelectedDateKey] = useState(""); // YYYY-MM-DD
   const [selectedHour, setSelectedHour] = useState("");
 
-  // Reserved dates index (recommended for “1 rezerwacja na dzień”)
+  // Reserved dates index
   const [reservedByDate, setReservedByDate] = useState({}); // { "YYYY-MM-DD": "<cleaningId>" }
   const reservedDateKeys = useMemo(() => new Set(Object.keys(reservedByDate || {})), [reservedByDate]);
 
@@ -76,44 +81,44 @@ export default function CleaningForm() {
   const [formError, setFormError] = useState("");
   const [formInfo, setFormInfo] = useState("");
 
+  // ✅ NEW: check localStorage reserved:true and show overlay for 10s, then remove immediately
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem("reserved");
+      if (flag === "true") {
+        setShowReservedToast(true);
+
+        // remove immediately after showing
+        localStorage.removeItem("reserved");
+
+        const t = setTimeout(() => setShowReservedToast(false), 10_000);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Total price
   const overallPrice = useMemo(() => {
     const total =
       singleStandardWindowQuantity * PRICE.singleStandard +
       doubleStandardWindowQuantity * PRICE.doubleStandard +
-      singleBigWindowQuantity * PRICE.singleBig +
-      doubleBigWindowQuantity * PRICE.doubleBig +
       balconyDoorsQuantity * PRICE.balconyDoor +
       largeGlassMetersQuantity * PRICE.largeGlassPerM2;
 
     return Math.max(0, Math.round(total));
-  }, [
-    singleStandardWindowQuantity,
-    doubleStandardWindowQuantity,
-    singleBigWindowQuantity,
-    doubleBigWindowQuantity,
-    balconyDoorsQuantity,
-    largeGlassMetersQuantity,
-  ]);
+  }, [singleStandardWindowQuantity, doubleStandardWindowQuantity, balconyDoorsQuantity, largeGlassMetersQuantity]);
 
   const hasAnyService = useMemo(() => {
     return (
       singleStandardWindowQuantity +
         doubleStandardWindowQuantity +
-        singleBigWindowQuantity +
-        doubleBigWindowQuantity +
         balconyDoorsQuantity +
         largeGlassMetersQuantity >
       0
     );
-  }, [
-    singleStandardWindowQuantity,
-    doubleStandardWindowQuantity,
-    singleBigWindowQuantity,
-    doubleBigWindowQuantity,
-    balconyDoorsQuantity,
-    largeGlassMetersQuantity,
-  ]);
+  }, [singleStandardWindowQuantity, doubleStandardWindowQuantity, balconyDoorsQuantity, largeGlassMetersQuantity]);
 
   // Load reserved index: CleaningByDate/{YYYY-MM-DD} = cleaningId
   useEffect(() => {
@@ -130,7 +135,6 @@ export default function CleaningForm() {
       }
     );
 
-    // Firebase onValue returns unsubscribe function in v9 modular
     return () => {
       try {
         unsubscribe();
@@ -142,17 +146,14 @@ export default function CleaningForm() {
 
   const isDateSelectable = useCallback(
     (dateObj) => {
-      // hide weekends in calendar, but still be safe
       const day = dateObj.getDay(); // 0 Sun, 6 Sat
       if (day === 0 || day === 6) return false;
 
-      // past days blocked
       const today = startOfToday();
       const d = new Date(dateObj);
       d.setHours(0, 0, 0, 0);
       if (d < today) return false;
 
-      // reserved blocked
       const key = toDateKey(dateObj);
       if (reservedDateKeys.has(key)) return false;
 
@@ -182,24 +183,6 @@ export default function CleaningForm() {
         sum: doubleStandardWindowQuantity * PRICE.doubleStandard,
       });
     }
-    if (singleBigWindowQuantity > 0) {
-      items.push({
-        label: "Okna duże pojedyncze",
-        qty: singleBigWindowQuantity,
-        unit: "szt.",
-        unitPrice: PRICE.singleBig,
-        sum: singleBigWindowQuantity * PRICE.singleBig,
-      });
-    }
-    if (doubleBigWindowQuantity > 0) {
-      items.push({
-        label: "Okna duże podwójne",
-        qty: doubleBigWindowQuantity,
-        unit: "szt.",
-        unitPrice: PRICE.doubleBig,
-        sum: doubleBigWindowQuantity * PRICE.doubleBig,
-      });
-    }
     if (balconyDoorsQuantity > 0) {
       items.push({
         label: "Drzwi balkonowe",
@@ -220,14 +203,7 @@ export default function CleaningForm() {
     }
 
     return items;
-  }, [
-    singleStandardWindowQuantity,
-    doubleStandardWindowQuantity,
-    singleBigWindowQuantity,
-    doubleBigWindowQuantity,
-    balconyDoorsQuantity,
-    largeGlassMetersQuantity,
-  ]);
+  }, [singleStandardWindowQuantity, doubleStandardWindowQuantity, balconyDoorsQuantity, largeGlassMetersQuantity]);
 
   const resetMessages = () => {
     setFormError("");
@@ -282,7 +258,6 @@ export default function CleaningForm() {
       return;
     }
 
-    // Szybka walidacja na froncie (i tak finalnie blokuje transakcja)
     if (reservedDateKeys.has(selectedDateKey)) {
       setFormError("Ktoś już zarezerwował ten termin. Wybierz inny dzień.");
       return;
@@ -296,10 +271,9 @@ export default function CleaningForm() {
     let reservedNow = false;
 
     try {
-      // 1) Atomowo rezerwujemy dzień: jeśli już jest -> abort
       const txResult = await runTransaction(indexRef, (current) => {
-        if (current) return; // już zajęte -> transakcja się nie zapisze
-        return "RESERVED"; // tymczasowy znacznik (zaraz podmienimy na ID)
+        if (current) return;
+        return "RESERVED";
       });
 
       if (!txResult.committed) {
@@ -310,14 +284,11 @@ export default function CleaningForm() {
 
       reservedNow = true;
 
-      // 2) Tworzymy wpis w Cleanings (push -> id)
       const cleaningsRef = ref(database, "Cleanings");
       const newCleaningRef = push(cleaningsRef);
       const id = newCleaningRef.key;
 
-      if (!id) {
-        throw new Error("Nie udało się wygenerować ID rezerwacji.");
-      }
+      if (!id) throw new Error("Nie udało się wygenerować ID rezerwacji.");
 
       const payload = {
         clientName: clientName.trim(),
@@ -329,8 +300,6 @@ export default function CleaningForm() {
 
         singleStandardWindowQuantity,
         doubleStandardWindowQuantity,
-        singleBigWindowQuantity,
-        doubleBigWindowQuantity,
         balconyDoorsQuantity,
         largeGlassMetersQuantity,
 
@@ -338,24 +307,22 @@ export default function CleaningForm() {
         createdAt: Date.now(),
       };
 
-      // 3) Zapis payload
       await set(ref(database, `Cleanings/${id}`), payload);
-
-      // 4) Podmieniamy znacznik w indeksie dnia na prawdziwe ID (spójność)
       await set(ref(database, `CleaningByDate/${dateKey}`), id);
 
-      // 5) LocalStorage + redirect
+      // ✅ NEW: set flag then force refresh (hard reload on home)
       try {
         localStorage.setItem("reserved", "true");
       } catch {
         // ignore
       }
 
-      navigate("/");
+      // Navigate not needed if we hard-refresh, but leaving it would be pointless.
+      // We do a full refresh to ensure everything reloads.
+      window.location.href = "/";
     } catch (error) {
       console.error(error);
 
-      // Jeśli udało się “zająć dzień”, a dalej coś padło — zwalniamy dzień
       if (reservedNow) {
         try {
           const current = await get(ref(database, `CleaningByDate/${selectedDateKey}`));
@@ -377,6 +344,41 @@ export default function CleaningForm() {
 
   return (
     <div className={styles.cleaningFormPage}>
+      {/* ✅ NEW: success overlay */}
+      {showReservedToast && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            background: "rgba(0,0,0,0.35)",
+          }}
+          aria-live="polite"
+          role="status"
+        >
+          <div
+            style={{
+              maxWidth: 820,
+              width: "100%",
+              borderRadius: 14,
+              padding: "18px 20px",
+              background: "#1f9d55",
+              color: "white",
+              fontWeight: 600,
+              lineHeight: 1.35,
+              boxShadow: "0 18px 60px rgba(0,0,0,0.35)",
+              textAlign: "center",
+            }}
+          >
+            Przyjęto rezerwację - niedługo skontaktuje się z Tobą nasz pracownik w celu potwierdzenia wizyty.
+          </div>
+        </div>
+      )}
+
       <div className={styles.cleaningFormContainer}>
         <header className={styles.cleaningFormHeader}>
           <h1 className={styles.cleaningFormTitle}>Zamów mycie okien</h1>
@@ -456,11 +458,24 @@ export default function CleaningForm() {
             <h2 className={styles.sectionTitle}>Zakres usługi</h2>
 
             <div className={styles.serviceGrid}>
+              {/* 1 */}
               <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Okna standardowe pojedyncze</div>
-                  <div className={styles.servicePrice}>{PRICE.singleStandard} zł / szt.</div>
+                <div className={styles.serviceLeft}>
+                  <div className={styles.serviceIconWrap}>
+                    <img
+                      className={styles.serviceIcon}
+                      src={singleWindow}
+                      alt="Okna standardowe pojedyncze"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className={styles.serviceMeta}>
+                    <div className={styles.serviceName}>Okna standardowe pojedyncze</div>
+                    <div className={styles.servicePrice}>{PRICE.singleStandard} zł / szt.</div>
+                  </div>
                 </div>
+
                 <div className={styles.serviceControl}>
                   <select
                     className={styles.selectInput}
@@ -476,11 +491,24 @@ export default function CleaningForm() {
                 </div>
               </div>
 
+              {/* 2 */}
               <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Okna standardowe podwójne</div>
-                  <div className={styles.servicePrice}>{PRICE.doubleStandard} zł / szt.</div>
+                <div className={styles.serviceLeft}>
+                  <div className={styles.serviceIconWrap}>
+                    <img
+                      className={styles.serviceIcon}
+                      src={doubleWindow}
+                      alt="Okna standardowe podwójne"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className={styles.serviceMeta}>
+                    <div className={styles.serviceName}>Okna standardowe podwójne</div>
+                    <div className={styles.servicePrice}>{PRICE.doubleStandard} zł / szt.</div>
+                  </div>
                 </div>
+
                 <div className={styles.serviceControl}>
                   <select
                     className={styles.selectInput}
@@ -496,51 +524,19 @@ export default function CleaningForm() {
                 </div>
               </div>
 
+              {/* 3 */}
               <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Okna duże pojedyncze</div>
-                  <div className={styles.servicePrice}>{PRICE.singleBig} zł / szt.</div>
-                </div>
-                <div className={styles.serviceControl}>
-                  <select
-                    className={styles.selectInput}
-                    value={singleBigWindowQuantity}
-                    onChange={(e) => setSingleBigWindowQuantity(clampInt(e.target.value, 0, 999))}
-                  >
-                    {quantityOptions.map((n) => (
-                      <option key={`sbw-${n}`} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                <div className={styles.serviceLeft}>
+                  <div className={styles.serviceIconWrap}>
+                    <img className={styles.serviceIcon} src={balconyDoor} alt="Drzwi balkonowe" loading="lazy" />
+                  </div>
 
-              <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Okna duże podwójne</div>
-                  <div className={styles.servicePrice}>{PRICE.doubleBig} zł / szt.</div>
+                  <div className={styles.serviceMeta}>
+                    <div className={styles.serviceName}>Drzwi balkonowe</div>
+                    <div className={styles.servicePrice}>{PRICE.balconyDoor} zł / szt.</div>
+                  </div>
                 </div>
-                <div className={styles.serviceControl}>
-                  <select
-                    className={styles.selectInput}
-                    value={doubleBigWindowQuantity}
-                    onChange={(e) => setDoubleBigWindowQuantity(clampInt(e.target.value, 0, 999))}
-                  >
-                    {quantityOptions.map((n) => (
-                      <option key={`dbw-${n}`} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Drzwi balkonowe</div>
-                  <div className={styles.servicePrice}>{PRICE.balconyDoor} zł / szt.</div>
-                </div>
                 <div className={styles.serviceControl}>
                   <select
                     className={styles.selectInput}
@@ -556,11 +552,19 @@ export default function CleaningForm() {
                 </div>
               </div>
 
+              {/* 4 */}
               <div className={styles.serviceRow}>
-                <div className={styles.serviceMeta}>
-                  <div className={styles.serviceName}>Duże witryny</div>
-                  <div className={styles.servicePrice}>{PRICE.largeGlassPerM2} zł / m²</div>
+                <div className={styles.serviceLeft}>
+                  <div className={styles.serviceIconWrap}>
+                    <img className={styles.serviceIcon} src={largeGlass} alt="Duże witryny" loading="lazy" />
+                  </div>
+
+                  <div className={styles.serviceMeta}>
+                    <div className={styles.serviceName}>Duże witryny</div>
+                    <div className={styles.servicePrice}>{PRICE.largeGlassPerM2} zł / m²</div>
+                  </div>
                 </div>
+
                 <div className={styles.serviceControl}>
                   <input
                     className={styles.numberInput}
