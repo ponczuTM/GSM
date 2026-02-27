@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""
-Skanuje 10.10.233.1-255 i wypisuje TYLKO 4. oktet dla tych IP,
-które zwracają HTML (po HTTP :80 lub HTTPS :443).
-
-DODATKOWO: po skanowaniu może od razu otworzyć znalezione hosty w przeglądarce.
-
-Użycie:
-  python scan_html.py
-  python scan_html.py --timeout 1.5 --workers 120
-  python scan_html.py --open tabs
-  python scan_html.py --open html
-  python scan_html.py --open both
-"""
 
 import argparse
 import concurrent.futures as cf

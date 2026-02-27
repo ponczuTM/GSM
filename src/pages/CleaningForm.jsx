@@ -1,30 +1,35 @@
-import React, { useEffect, useMemo, useState } from "react";
-import styles from "./CleaningForm.module.css";
+// CleaningForm.jsx
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-
-import { database, ref, set, onValue, get, push, remove } from "../FirebaseConfig";
-
-// Do atomowego "zajęcia dnia" używamy transakcji:
+import styles from "./CleaningForm.module.css";
+// Firebase (two imports: your wrapper + runTransaction from SDK)
+import { database, ref, onValue, get, set, push, remove } from "../FirebaseConfig";
 import { runTransaction } from "firebase/database";
 
-import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import "react-big-calendar/lib/css/react-big-calendar.css";
+// FullCalendar (wymagane paczki: @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction)
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 
-import { format, parse, startOfWeek, getDay, addDays, startOfDay, endOfDay } from "date-fns";
-import pl from "date-fns/locale/pl";
-
-const locales = { pl };
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek: () => startOfWeek(new Date(), { locale: pl }),
-  getDay,
-  locales,
-});
+// Helpers
+const pad2 = (n) => String(n).padStart(2, "0");
+const toDateKey = (dateObj) => {
+  // YYYY-MM-DD (local)
+  const y = dateObj.getFullYear();
+  const m = pad2(dateObj.getMonth() + 1);
+  const d = pad2(dateObj.getDate());
+  return `${y}-${m}-${d}`;
+};
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 const HOURS = ["16:30", "17:00", "17:30", "18:00"];
 
-const PRICES = {
+const PRICE = {
   singleStandard: 30,
   doubleStandard: 60,
   singleBig: 45,
@@ -33,120 +38,187 @@ const PRICES = {
   largeGlassPerM2: 8,
 };
 
-function toInt(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.trunc(n));
-}
-
-function toNumber(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, n);
-}
-
-function dateKeyFromDate(d) {
-  // yyyy-MM-dd w lokalnej strefie użytkownika
-  return format(d, "yyyy-MM-dd");
-}
-
-function isPastDay(d) {
-  const todayStart = startOfDay(new Date());
-  return startOfDay(d).getTime() < todayStart.getTime();
-}
-
-function isWeekend(d) {
-  const day = d.getDay(); // 0 = niedziela, 6 = sobota
-  return day === 0 || day === 6;
-}
+const clampInt = (value, min = 0, max = 999) => {
+  const n = Number.parseInt(value, 10);
+  if (Number.isNaN(n)) return min;
+  return Math.min(max, Math.max(min, n));
+};
 
 export default function CleaningForm() {
   const navigate = useNavigate();
 
-  // Dane klienta
+  // Client fields
   const [clientName, setClientName] = useState("");
   const [clientSurname, setClientSurname] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientMail, setClientMail] = useState("");
 
-  // Ilości
+  // Quantities
   const [singleStandardWindowQuantity, setSingleStandardWindowQuantity] = useState(0);
   const [doubleStandardWindowQuantity, setDoubleStandardWindowQuantity] = useState(0);
   const [singleBigWindowQuantity, setSingleBigWindowQuantity] = useState(0);
   const [doubleBigWindowQuantity, setDoubleBigWindowQuantity] = useState(0);
   const [balconyDoorsQuantity, setBalconyDoorsQuantity] = useState(0);
-  const [largeGlassMetersQuantity, setLargeGlassMetersQuantity] = useState(0); // m2 (może być ułamkowe)
+  const [largeGlassMetersQuantity, setLargeGlassMetersQuantity] = useState(0); // m2
 
-  // Terminy
-  const [selectedDate, setSelectedDate] = useState(null); // Date
+  // Calendar selection
+  const [selectedDateKey, setSelectedDateKey] = useState(""); // YYYY-MM-DD
   const [selectedHour, setSelectedHour] = useState("");
 
-  // Domyślnie tylko dni robocze
-  const [showWeekends, setShowWeekends] = useState(false);
+  // Reserved dates index (recommended for “1 rezerwacja na dzień”)
+  const [reservedByDate, setReservedByDate] = useState({}); // { "YYYY-MM-DD": "<cleaningId>" }
+  const reservedDateKeys = useMemo(() => new Set(Object.keys(reservedByDate || {})), [reservedByDate]);
 
-  // Zajęte dni (indeks)
-  const [reservedDates, setReservedDates] = useState(new Set());
+  // UI states
+  const [loadingCalendar, setLoadingCalendar] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formInfo, setFormInfo] = useState("");
 
-  // UI
-  const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Total price
+  const overallPrice = useMemo(() => {
+    const total =
+      singleStandardWindowQuantity * PRICE.singleStandard +
+      doubleStandardWindowQuantity * PRICE.doubleStandard +
+      singleBigWindowQuantity * PRICE.singleBig +
+      doubleBigWindowQuantity * PRICE.doubleBig +
+      balconyDoorsQuantity * PRICE.balconyDoor +
+      largeGlassMetersQuantity * PRICE.largeGlassPerM2;
 
-  // Pobieramy rezerwacje dni (CleaningDates/{yyyy-MM-dd})
+    return Math.max(0, Math.round(total));
+  }, [
+    singleStandardWindowQuantity,
+    doubleStandardWindowQuantity,
+    singleBigWindowQuantity,
+    doubleBigWindowQuantity,
+    balconyDoorsQuantity,
+    largeGlassMetersQuantity,
+  ]);
+
+  const hasAnyService = useMemo(() => {
+    return (
+      singleStandardWindowQuantity +
+        doubleStandardWindowQuantity +
+        singleBigWindowQuantity +
+        doubleBigWindowQuantity +
+        balconyDoorsQuantity +
+        largeGlassMetersQuantity >
+      0
+    );
+  }, [
+    singleStandardWindowQuantity,
+    doubleStandardWindowQuantity,
+    singleBigWindowQuantity,
+    doubleBigWindowQuantity,
+    balconyDoorsQuantity,
+    largeGlassMetersQuantity,
+  ]);
+
+  // Load reserved index: CleaningByDate/{YYYY-MM-DD} = cleaningId
   useEffect(() => {
-    const datesRef = ref(database, "CleaningDates");
-    const unsub = onValue(datesRef, (snap) => {
-      const val = snap.val() || {};
-      const keys = Object.keys(val);
-      setReservedDates(new Set(keys));
-    });
+    const idxRef = ref(database, "CleaningByDate");
+    const unsubscribe = onValue(
+      idxRef,
+      (snap) => {
+        setReservedByDate(snap.val() || {});
+        setLoadingCalendar(false);
+      },
+      (err) => {
+        console.error(err);
+        setLoadingCalendar(false);
+      }
+    );
 
-    // onValue w RTDB zwraca funkcję odpięcia w SDK v9
-    return () => unsub();
+    // Firebase onValue returns unsubscribe function in v9 modular
+    return () => {
+      try {
+        unsubscribe();
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
-  const overallPrice = useMemo(() => {
-    const sStd = toInt(singleStandardWindowQuantity) * PRICES.singleStandard;
-    const dStd = toInt(doubleStandardWindowQuantity) * PRICES.doubleStandard;
-    const sBig = toInt(singleBigWindowQuantity) * PRICES.singleBig;
-    const dBig = toInt(doubleBigWindowQuantity) * PRICES.doubleBig;
-    const balc = toInt(balconyDoorsQuantity) * PRICES.balconyDoor;
-    const glass = toNumber(largeGlassMetersQuantity) * PRICES.largeGlassPerM2;
+  const isDateSelectable = useCallback(
+    (dateObj) => {
+      // hide weekends in calendar, but still be safe
+      const day = dateObj.getDay(); // 0 Sun, 6 Sat
+      if (day === 0 || day === 6) return false;
 
-    // Zaokrąglamy do 2 miejsc (jakby m2 były ułamkowe)
-    return Math.round((sStd + dStd + sBig + dBig + balc + glass) * 100) / 100;
-  }, [
-    singleStandardWindowQuantity,
-    doubleStandardWindowQuantity,
-    singleBigWindowQuantity,
-    doubleBigWindowQuantity,
-    balconyDoorsQuantity,
-    largeGlassMetersQuantity,
-  ]);
+      // past days blocked
+      const today = startOfToday();
+      const d = new Date(dateObj);
+      d.setHours(0, 0, 0, 0);
+      if (d < today) return false;
 
-  const summaryItems = useMemo(() => {
-    const items = [
-      {
+      // reserved blocked
+      const key = toDateKey(dateObj);
+      if (reservedDateKeys.has(key)) return false;
+
+      return true;
+    },
+    [reservedDateKeys]
+  );
+
+  const buildLineItems = useMemo(() => {
+    const items = [];
+
+    if (singleStandardWindowQuantity > 0) {
+      items.push({
         label: "Okna standardowe pojedyncze",
-        qty: toInt(singleStandardWindowQuantity),
-        price: PRICES.singleStandard,
-      },
-      {
+        qty: singleStandardWindowQuantity,
+        unit: "szt.",
+        unitPrice: PRICE.singleStandard,
+        sum: singleStandardWindowQuantity * PRICE.singleStandard,
+      });
+    }
+    if (doubleStandardWindowQuantity > 0) {
+      items.push({
         label: "Okna standardowe podwójne",
-        qty: toInt(doubleStandardWindowQuantity),
-        price: PRICES.doubleStandard,
-      },
-      { label: "Okna duże pojedyncze", qty: toInt(singleBigWindowQuantity), price: PRICES.singleBig },
-      { label: "Okna duże podwójne", qty: toInt(doubleBigWindowQuantity), price: PRICES.doubleBig },
-      { label: "Drzwi balkonowe", qty: toInt(balconyDoorsQuantity), price: PRICES.balconyDoor },
-      {
-        label: "Duże witryny (m²)",
-        qty: toNumber(largeGlassMetersQuantity),
-        price: PRICES.largeGlassPerM2,
+        qty: doubleStandardWindowQuantity,
+        unit: "szt.",
+        unitPrice: PRICE.doubleStandard,
+        sum: doubleStandardWindowQuantity * PRICE.doubleStandard,
+      });
+    }
+    if (singleBigWindowQuantity > 0) {
+      items.push({
+        label: "Okna duże pojedyncze",
+        qty: singleBigWindowQuantity,
+        unit: "szt.",
+        unitPrice: PRICE.singleBig,
+        sum: singleBigWindowQuantity * PRICE.singleBig,
+      });
+    }
+    if (doubleBigWindowQuantity > 0) {
+      items.push({
+        label: "Okna duże podwójne",
+        qty: doubleBigWindowQuantity,
+        unit: "szt.",
+        unitPrice: PRICE.doubleBig,
+        sum: doubleBigWindowQuantity * PRICE.doubleBig,
+      });
+    }
+    if (balconyDoorsQuantity > 0) {
+      items.push({
+        label: "Drzwi balkonowe",
+        qty: balconyDoorsQuantity,
+        unit: "szt.",
+        unitPrice: PRICE.balconyDoor,
+        sum: balconyDoorsQuantity * PRICE.balconyDoor,
+      });
+    }
+    if (largeGlassMetersQuantity > 0) {
+      items.push({
+        label: "Duże witryny",
+        qty: largeGlassMetersQuantity,
         unit: "m²",
-      },
-    ];
-    return items.filter((x) => x.qty > 0);
+        unitPrice: PRICE.largeGlassPerM2,
+        sum: largeGlassMetersQuantity * PRICE.largeGlassPerM2,
+      });
+    }
+
+    return items;
   }, [
     singleStandardWindowQuantity,
     doubleStandardWindowQuantity,
@@ -156,468 +228,507 @@ export default function CleaningForm() {
     largeGlassMetersQuantity,
   ]);
 
-  const calendarEvents = useMemo(() => {
-    // Robimy event “Zajęte” na cały dzień (ładny sygnał w kalendarzu)
-    return Array.from(reservedDates).map((dk) => {
-      const d = parse(dk, "yyyy-MM-dd", new Date());
-      return {
-        title: "Zajęte",
-        start: startOfDay(d),
-        end: endOfDay(d),
-        allDay: true,
-      };
-    });
-  }, [reservedDates]);
+  const resetMessages = () => {
+    setFormError("");
+    setFormInfo("");
+  };
 
-  function isDateSelectable(d) {
-    if (!d) return false;
+  const handleDateClick = useCallback(
+    (arg) => {
+      resetMessages();
 
-    // Blokujemy przeszłość
-    if (isPastDay(d)) return false;
+      const dateObj = arg.date;
+      if (!isDateSelectable(dateObj)) {
+        const key = toDateKey(dateObj);
+        if (reservedDateKeys.has(key)) {
+          setFormError("Ten termin jest już zajęty. Wybierz inny dzień.");
+        } else {
+          setFormError("Nie możesz wybrać tego dnia.");
+        }
+        return;
+      }
 
-    // Weekendy blokowane domyślnie
-    if (!showWeekends && isWeekend(d)) return false;
+      const key = toDateKey(dateObj);
+      setSelectedDateKey(key);
+      setSelectedHour("");
+      setFormInfo(`Wybrano dzień: ${key}`);
+    },
+    [isDateSelectable, reservedDateKeys]
+  );
 
-    // Jeśli zarezerwowane, to nie do wyboru
-    const dk = dateKeyFromDate(d);
-    if (reservedDates.has(dk)) return false;
+  const handleHourPick = (hour) => {
+    resetMessages();
+    setSelectedHour(hour);
+  };
 
-    return true;
-  }
-
-  function handleSelectSlot(slotInfo) {
-    setError("");
-    setInfo("");
-
-    const picked = slotInfo?.start ? startOfDay(slotInfo.start) : null;
-    if (!picked) return;
-
-    if (!isDateSelectable(picked)) {
-      if (isPastDay(picked)) setError("Nie możesz wybrać terminu w przeszłości.");
-      else if (!showWeekends && isWeekend(picked)) setError("Weekend jest zablokowany (domyślnie wybieramy dni robocze).");
-      else setError("Ten dzień jest już zajęty.");
-      return;
-    }
-
-    setSelectedDate(picked);
-  }
-
-  function dayPropGetter(date) {
-    const d = startOfDay(date);
-    const dk = dateKeyFromDate(d);
-
-    const disabled =
-      isPastDay(d) ||
-      (!showWeekends && isWeekend(d)) ||
-      reservedDates.has(dk);
-
-    if (disabled) {
-      return {
-        className: styles.disabledDay,
-      };
-    }
-    return {
-      className: styles.enabledDay,
-    };
-  }
-
-  function eventPropGetter() {
-    return {
-      className: styles.reservedEvent,
-    };
-  }
-
-  function validate() {
-    const nameOk = clientName.trim().length >= 2;
-    const surnameOk = clientSurname.trim().length >= 2;
-    const phoneOk = clientPhone.trim().length >= 6;
-
-    if (!nameOk) return "Podaj imię (min. 2 znaki).";
-    if (!surnameOk) return "Podaj nazwisko (min. 2 znaki).";
-    if (!phoneOk) return "Podaj poprawny numer telefonu.";
-
-    if (overallPrice <= 0) return "Wybierz co najmniej jedną usługę (ilość > 0), inaczej cena wyniesie 0.";
-
-    if (!selectedDate) return "Wybierz dzień w kalendarzu.";
+  const validate = () => {
+    if (!clientName.trim()) return "Podaj imię.";
+    if (!clientSurname.trim()) return "Podaj nazwisko.";
+    if (!clientPhone.trim()) return "Podaj numer telefonu.";
+    if (!hasAnyService) return "Wybierz przynajmniej jedną pozycję usługi.";
+    if (!selectedDateKey) return "Wybierz dzień w kalendarzu.";
     if (!selectedHour) return "Wybierz godzinę.";
-
-    if (!isDateSelectable(selectedDate)) return "Ten termin nie jest już dostępny.";
-
     return "";
-  }
+  };
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setInfo("");
+    resetMessages();
 
-    const v = validate();
-    if (v) {
-      setError(v);
+    const err = validate();
+    if (err) {
+      setFormError(err);
       return;
     }
 
-    setIsSubmitting(true);
-
-    const dk = dateKeyFromDate(selectedDate);
-
-    // 1) Przygotuj ID wpisu w Cleanings
-    const newCleaningRef = push(ref(database, "Cleanings"));
-    const cleaningId = newCleaningRef.key;
-
-    if (!cleaningId) {
-      setIsSubmitting(false);
-      setError("Nie udało się wygenerować ID rezerwacji. Spróbuj ponownie.");
+    // Szybka walidacja na froncie (i tak finalnie blokuje transakcja)
+    if (reservedDateKeys.has(selectedDateKey)) {
+      setFormError("Ktoś już zarezerwował ten termin. Wybierz inny dzień.");
       return;
     }
 
-    // 2) Atomowo zajmij dzień: CleaningDates/{yyyy-MM-dd} = { cleaningId, reservedAt }
-    const lockRef = ref(database, `CleaningDates/${dk}`);
+    setSubmitting(true);
+
+    const dateKey = selectedDateKey;
+    const indexRef = ref(database, `CleaningByDate/${dateKey}`);
+
+    let reservedNow = false;
 
     try {
-      const txResult = await runTransaction(lockRef, (currentData) => {
-        // jeśli już istnieje, ktoś zajął
-        if (currentData) return currentData;
-
-        return {
-          cleaningId,
-          reservedAt: Date.now(),
-        };
+      // 1) Atomowo rezerwujemy dzień: jeśli już jest -> abort
+      const txResult = await runTransaction(indexRef, (current) => {
+        if (current) return; // już zajęte -> transakcja się nie zapisze
+        return "RESERVED"; // tymczasowy znacznik (zaraz podmienimy na ID)
       });
 
       if (!txResult.committed) {
-        setIsSubmitting(false);
-        setError("Ktoś zarezerwował ten termin w międzyczasie. Wybierz inny dzień.");
+        setFormError("Ktoś już zarezerwował ten termin w międzyczasie. Wybierz inny dzień.");
+        setSubmitting(false);
         return;
       }
 
-      // Jeżeli transakcja zwróciła istniejące dane (czyli nie my), też traktuj jako zajęte
-      const after = txResult.snapshot.val();
-      if (!after || after.cleaningId !== cleaningId) {
-        setIsSubmitting(false);
-        setError("Ktoś zarezerwował ten termin w międzyczasie. Wybierz inny dzień.");
-        return;
+      reservedNow = true;
+
+      // 2) Tworzymy wpis w Cleanings (push -> id)
+      const cleaningsRef = ref(database, "Cleanings");
+      const newCleaningRef = push(cleaningsRef);
+      const id = newCleaningRef.key;
+
+      if (!id) {
+        throw new Error("Nie udało się wygenerować ID rezerwacji.");
       }
 
-      // 3) Zapisz właściwe dane w Cleanings/{id}
       const payload = {
         clientName: clientName.trim(),
         clientSurname: clientSurname.trim(),
         clientPhone: clientPhone.trim(),
         clientmail: clientMail.trim() || "",
-        date: dk,
+        date: dateKey,
         Hour: selectedHour,
 
-        singleStandardWindowQuantity: toInt(singleStandardWindowQuantity),
-        doubleStandardWindowQuantity: toInt(doubleStandardWindowQuantity),
-        singleBigWindowQuantity: toInt(singleBigWindowQuantity),
-        doubleBigWindowQuantity: toInt(doubleBigWindowQuantity),
-        balconyDoorsQuantity: toInt(balconyDoorsQuantity),
-        largeGlassMetersQuantity: toNumber(largeGlassMetersQuantity),
+        singleStandardWindowQuantity,
+        doubleStandardWindowQuantity,
+        singleBigWindowQuantity,
+        doubleBigWindowQuantity,
+        balconyDoorsQuantity,
+        largeGlassMetersQuantity,
 
         OverallPrice: overallPrice,
         createdAt: Date.now(),
       };
 
-      await set(ref(database, `Cleanings/${cleaningId}`), payload);
+      // 3) Zapis payload
+      await set(ref(database, `Cleanings/${id}`), payload);
 
-      // 4) localStorage + redirect
-      localStorage.setItem("reserved", "true");
-      navigate("/");
-    } catch (err) {
-      // Jeśli coś wywaliło się po locku, spróbuj odblokować dzień
+      // 4) Podmieniamy znacznik w indeksie dnia na prawdziwe ID (spójność)
+      await set(ref(database, `CleaningByDate/${dateKey}`), id);
+
+      // 5) LocalStorage + redirect
       try {
-        await remove(ref(database, `CleaningDates/${dk}`));
+        localStorage.setItem("reserved", "true");
       } catch {
-        // Nie spamuj usera – i tak pokażemy główny błąd
+        // ignore
       }
-      setError("Wystąpił błąd podczas rezerwacji. Spróbuj ponownie.");
-      // Dla Ciebie (dev):
-      // eslint-disable-next-line no-console
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
 
-  const selectedDateLabel = useMemo(() => {
-    if (!selectedDate) return "";
-    return format(selectedDate, "EEEE, d MMMM yyyy", { locale: pl });
-  }, [selectedDate]);
+      navigate("/");
+    } catch (error) {
+      console.error(error);
+
+      // Jeśli udało się “zająć dzień”, a dalej coś padło — zwalniamy dzień
+      if (reservedNow) {
+        try {
+          const current = await get(ref(database, `CleaningByDate/${selectedDateKey}`));
+          if (current.exists()) {
+            await remove(ref(database, `CleaningByDate/${selectedDateKey}`));
+          }
+        } catch (rollbackErr) {
+          console.error("Rollback error:", rollbackErr);
+        }
+      }
+
+      setFormError("Coś poszło nie tak podczas rezerwacji. Spróbuj ponownie.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const quantityOptions = useMemo(() => Array.from({ length: 31 }, (_, i) => i), []);
 
   return (
-    <div className={styles.wrapper}>
-      <h2 className={styles.title}>Zamów mycie okien</h2>
+    <div className={styles.cleaningFormPage}>
+      <div className={styles.cleaningFormContainer}>
+        <header className={styles.cleaningFormHeader}>
+          <h1 className={styles.cleaningFormTitle}>Zamów mycie okien</h1>
+          <p className={styles.cleaningFormSubtitle}>
+            Wypełnij dane, wybierz zakres usługi, termin i godzinę. Jedna rezerwacja = jeden dzień.
+          </p>
+        </header>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <section className={styles.card}>
-          <h3 className={styles.sectionTitle}>Dane klienta</h3>
+        <form className={styles.cleaningForm} onSubmit={handleSubmit}>
+          {/* Client data */}
+          <section className={`${styles.cleaningFormSection} ${styles.cleaningFormSectionClient}`}>
+            <h2 className={styles.sectionTitle}>Dane klienta</h2>
 
-          <div className={styles.grid2}>
-            <label className={styles.label}>
-              Imię
-              <input
-                className={styles.input}
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Jan"
-                autoComplete="given-name"
-              />
-            </label>
-
-            <label className={styles.label}>
-              Nazwisko
-              <input
-                className={styles.input}
-                value={clientSurname}
-                onChange={(e) => setClientSurname(e.target.value)}
-                placeholder="Kowalski"
-                autoComplete="family-name"
-              />
-            </label>
-          </div>
-
-          <div className={styles.grid2}>
-            <label className={styles.label}>
-              Numer telefonu
-              <input
-                className={styles.input}
-                value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
-                placeholder="np. 500 600 700"
-                inputMode="tel"
-                autoComplete="tel"
-              />
-            </label>
-
-            <label className={styles.label}>
-              Email (opcjonalnie)
-              <input
-                className={styles.input}
-                value={clientMail}
-                onChange={(e) => setClientMail(e.target.value)}
-                placeholder="np. jan@domena.pl"
-                inputMode="email"
-                autoComplete="email"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className={styles.card}>
-          <h3 className={styles.sectionTitle}>Wybierz ilości</h3>
-
-          <div className={styles.itemsGrid}>
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Okna standardowe pojedyncze</div>
-                <div className={styles.itemPrice}>30 zł / szt.</div>
+            <div className={`${styles.fieldGrid} ${styles.fieldGridTwoCols}`}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="clientName">
+                  Imię <span className={styles.fieldRequired}>*</span>
+                </label>
+                <input
+                  id="clientName"
+                  className={styles.fieldInput}
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  autoComplete="given-name"
+                />
               </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="1"
-                value={singleStandardWindowQuantity}
-                onChange={(e) => setSingleStandardWindowQuantity(e.target.value)}
-              />
+
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="clientSurname">
+                  Nazwisko <span className={styles.fieldRequired}>*</span>
+                </label>
+                <input
+                  id="clientSurname"
+                  className={styles.fieldInput}
+                  type="text"
+                  value={clientSurname}
+                  onChange={(e) => setClientSurname(e.target.value)}
+                  autoComplete="family-name"
+                />
+              </div>
             </div>
 
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Okna standardowe podwójne</div>
-                <div className={styles.itemPrice}>60 zł / szt.</div>
+            <div className={`${styles.fieldGrid} ${styles.fieldGridTwoCols}`}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="clientPhone">
+                  Numer telefonu <span className={styles.fieldRequired}>*</span>
+                </label>
+                <input
+                  id="clientPhone"
+                  className={styles.fieldInput}
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  autoComplete="tel"
+                />
               </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="1"
-                value={doubleStandardWindowQuantity}
-                onChange={(e) => setDoubleStandardWindowQuantity(e.target.value)}
-              />
+
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="clientMail">
+                  Adres email <span className={styles.fieldOptional}>(opcjonalne)</span>
+                </label>
+                <input
+                  id="clientMail"
+                  className={styles.fieldInput}
+                  type="email"
+                  value={clientMail}
+                  onChange={(e) => setClientMail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Service selection */}
+          <section className={`${styles.cleaningFormSection} ${styles.cleaningFormSectionService}`}>
+            <h2 className={styles.sectionTitle}>Zakres usługi</h2>
+
+            <div className={styles.serviceGrid}>
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Okna standardowe pojedyncze</div>
+                  <div className={styles.servicePrice}>{PRICE.singleStandard} zł / szt.</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <select
+                    className={styles.selectInput}
+                    value={singleStandardWindowQuantity}
+                    onChange={(e) => setSingleStandardWindowQuantity(clampInt(e.target.value, 0, 999))}
+                  >
+                    {quantityOptions.map((n) => (
+                      <option key={`ssw-${n}`} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Okna standardowe podwójne</div>
+                  <div className={styles.servicePrice}>{PRICE.doubleStandard} zł / szt.</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <select
+                    className={styles.selectInput}
+                    value={doubleStandardWindowQuantity}
+                    onChange={(e) => setDoubleStandardWindowQuantity(clampInt(e.target.value, 0, 999))}
+                  >
+                    {quantityOptions.map((n) => (
+                      <option key={`dsw-${n}`} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Okna duże pojedyncze</div>
+                  <div className={styles.servicePrice}>{PRICE.singleBig} zł / szt.</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <select
+                    className={styles.selectInput}
+                    value={singleBigWindowQuantity}
+                    onChange={(e) => setSingleBigWindowQuantity(clampInt(e.target.value, 0, 999))}
+                  >
+                    {quantityOptions.map((n) => (
+                      <option key={`sbw-${n}`} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Okna duże podwójne</div>
+                  <div className={styles.servicePrice}>{PRICE.doubleBig} zł / szt.</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <select
+                    className={styles.selectInput}
+                    value={doubleBigWindowQuantity}
+                    onChange={(e) => setDoubleBigWindowQuantity(clampInt(e.target.value, 0, 999))}
+                  >
+                    {quantityOptions.map((n) => (
+                      <option key={`dbw-${n}`} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Drzwi balkonowe</div>
+                  <div className={styles.servicePrice}>{PRICE.balconyDoor} zł / szt.</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <select
+                    className={styles.selectInput}
+                    value={balconyDoorsQuantity}
+                    onChange={(e) => setBalconyDoorsQuantity(clampInt(e.target.value, 0, 999))}
+                  >
+                    {quantityOptions.map((n) => (
+                      <option key={`bd-${n}`} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.serviceRow}>
+                <div className={styles.serviceMeta}>
+                  <div className={styles.serviceName}>Duże witryny</div>
+                  <div className={styles.servicePrice}>{PRICE.largeGlassPerM2} zł / m²</div>
+                </div>
+                <div className={styles.serviceControl}>
+                  <input
+                    className={styles.numberInput}
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={largeGlassMetersQuantity}
+                    onChange={(e) => setLargeGlassMetersQuantity(clampInt(e.target.value, 0, 99999))}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Okna duże pojedyncze</div>
-                <div className={styles.itemPrice}>45 zł / szt.</div>
+            {/* Summary */}
+            <div className={styles.summaryBox}>
+              <div className={styles.summaryHeader}>
+                <h3 className={styles.summaryTitle}>Podsumowanie</h3>
+                <div className={styles.summaryTotal}>
+                  <span className={styles.summaryTotalLabel}>Razem:</span>
+                  <span className={styles.summaryTotalValue}>{overallPrice} zł</span>
+                </div>
               </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="1"
-                value={singleBigWindowQuantity}
-                onChange={(e) => setSingleBigWindowQuantity(e.target.value)}
-              />
-            </div>
 
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Okna duże podwójne</div>
-                <div className={styles.itemPrice}>90 zł / szt.</div>
-              </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="1"
-                value={doubleBigWindowQuantity}
-                onChange={(e) => setDoubleBigWindowQuantity(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Drzwi balkonowe</div>
-                <div className={styles.itemPrice}>60 zł / szt.</div>
-              </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="1"
-                value={balconyDoorsQuantity}
-                onChange={(e) => setBalconyDoorsQuantity(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemName}>Duże witryny</div>
-                <div className={styles.itemPrice}>8 zł / m²</div>
-              </div>
-              <input
-                className={styles.qty}
-                type="number"
-                min="0"
-                step="0.5"
-                value={largeGlassMetersQuantity}
-                onChange={(e) => setLargeGlassMetersQuantity(e.target.value)}
-                placeholder="np. 12.5"
-              />
-            </div>
-          </div>
-
-          <div className={styles.summary}>
-            <div className={styles.summaryLeft}>
-              <div className={styles.summaryTitle}>Podsumowanie</div>
-              {summaryItems.length === 0 ? (
-                <div className={styles.muted}>Brak pozycji. Wpisz ilości, żeby zobaczyć cenę.</div>
+              {buildLineItems.length === 0 ? (
+                <div className={styles.summaryEmpty}>Wybierz elementy usługi, żeby zobaczyć koszt.</div>
               ) : (
                 <ul className={styles.summaryList}>
-                  {summaryItems.map((it) => {
-                    const line = Math.round(it.qty * it.price * 100) / 100;
-                    return (
-                      <li key={it.label} className={styles.summaryRow}>
-                        <span>
-                          {it.label} — {it.qty} {it.unit || "szt."} × {it.price} zł
+                  {buildLineItems.map((it) => (
+                    <li key={it.label} className={styles.summaryItem}>
+                      <div className={styles.summaryItemLeft}>
+                        <span className={styles.summaryItemLabel}>{it.label}</span>
+                        <span className={styles.summaryItemMeta}>
+                          {it.qty} {it.unit} × {it.unitPrice} zł
                         </span>
-                        <strong>{line} zł</strong>
-                      </li>
-                    );
-                  })}
+                      </div>
+                      <div className={styles.summaryItemRight}>{it.sum} zł</div>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
+          </section>
 
-            <div className={styles.summaryRight}>
-              <div className={styles.totalLabel}>Razem</div>
-              <div className={styles.totalValue}>{overallPrice.toFixed(2)} zł</div>
-            </div>
-          </div>
-        </section>
+          {/* Calendar */}
+          <section className={`${styles.cleaningFormSection} ${styles.cleaningFormSectionCalendar}`}>
+            <h2 className={styles.sectionTitle}>Wybierz termin</h2>
 
-        <section className={styles.card}>
-          <div className={styles.calendarHeader}>
-            <h3 className={styles.sectionTitle}>Wybierz dzień</h3>
+            <div className={styles.calendarBox}>
+              <div className={styles.calendarHintRow}>
+                <div className={styles.calendarHint}>
+                  {loadingCalendar ? (
+                    <span className={styles.hintText}>Ładowanie dostępnych terminów…</span>
+                  ) : (
+                    <span className={styles.hintText}>
+                      Kliknij dzień. Weekendy są domyślnie ukryte. Zajęte dni są zablokowane.
+                    </span>
+                  )}
+                </div>
 
-            <label className={styles.checkbox}>
-              <input
-                type="checkbox"
-                checked={showWeekends}
-                onChange={(e) => setShowWeekends(e.target.checked)}
-              />
-              Pokaż weekendy
-            </label>
-          </div>
+                {selectedDateKey ? (
+                  <div className={styles.selectedDateBadge}>
+                    <span className={styles.selectedDateLabel}>Wybrany dzień:</span>
+                    <span className={styles.selectedDateValue}>{selectedDateKey}</span>
+                  </div>
+                ) : (
+                  <div className={`${styles.selectedDateBadge} ${styles.selectedDateBadgeEmpty}`}>
+                    <span className={styles.selectedDateLabel}>Wybrany dzień:</span>
+                    <span className={styles.selectedDateValue}>—</span>
+                  </div>
+                )}
+              </div>
 
-          <div className={styles.calendarWrap}>
-            <Calendar
-              localizer={localizer}
-              culture="pl"
-              events={calendarEvents}
-              startAccessor="start"
-              endAccessor="end"
-              views={["month", "week", "day"]}
-              defaultView="month"
-              selectable
-              onSelectSlot={handleSelectSlot}
-              popup
-              dayPropGetter={dayPropGetter}
-              eventPropGetter={eventPropGetter}
-              messages={{
-                next: "Następny",
-                previous: "Poprzedni",
-                today: "Dziś",
-                month: "Miesiąc",
-                week: "Tydzień",
-                day: "Dzień",
-                agenda: "Agenda",
-                date: "Data",
-                time: "Godzina",
-                event: "Wydarzenie",
-                noEventsInRange: "Brak",
-              }}
-            />
-          </div>
+              <div className={styles.calendarWrapper}>
+                <FullCalendar
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  initialView="dayGridMonth"
+                  headerToolbar={{
+                    left: "prev,next today",
+                    center: "title",
+                    right: "dayGridMonth,timeGridWeek,timeGridDay",
+                  }}
+                  weekends={false}
+                  selectable={false}
+                  dateClick={handleDateClick}
+                  height="auto"
+                  fixedWeekCount={false}
+                  showNonCurrentDates={true}
+                  dayCellClassNames={(arg) => {
+                    const classes = [styles.calendarDayCell];
+                    const key = toDateKey(arg.date);
 
-          <div className={styles.pickedBar}>
-            <div>
-              <div className={styles.pickedLabel}>Wybrany dzień</div>
-              <div className={styles.pickedValue}>{selectedDate ? selectedDateLabel : "—"}</div>
-            </div>
+                    const d = new Date(arg.date);
+                    d.setHours(0, 0, 0, 0);
 
-            <div>
-              <div className={styles.pickedLabel}>Godzina</div>
-              <div className={styles.hours}>
-                {HOURS.map((h) => (
-                  <button
-                    type="button"
-                    key={h}
-                    className={`${styles.hourBtn} ${selectedHour === h ? styles.hourBtnActive : ""}`}
-                    onClick={() => setSelectedHour(h)}
-                    disabled={!selectedDate || isSubmitting}
-                  >
-                    {h}
-                  </button>
-                ))}
+                    if (d < startOfToday()) classes.push(styles.calendarDayCellPast);
+                    if (reservedDateKeys.has(key)) classes.push(styles.calendarDayCellReserved);
+                    if (selectedDateKey && key === selectedDateKey) classes.push(styles.calendarDayCellSelected);
+
+                    if (!isDateSelectable(arg.date)) classes.push(styles.calendarDayCellDisabled);
+
+                    return classes;
+                  }}
+                />
+              </div>
+
+              {/* Hours */}
+              <div className={styles.hoursBox}>
+                <h3 className={styles.hoursTitle}>Godzina</h3>
+
+                {!selectedDateKey ? (
+                  <div className={styles.hoursEmpty}>Najpierw wybierz dzień.</div>
+                ) : (
+                  <div className={styles.hoursButtons}>
+                    {HOURS.map((h) => {
+                      const active = selectedHour === h;
+                      return (
+                        <button
+                          key={h}
+                          type="button"
+                          className={`${styles.hourButton} ${active ? styles.hourButtonActive : ""}`}
+                          onClick={() => handleHourPick(h)}
+                        >
+                          {h}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
+          </section>
+
+          {/* Messages */}
+          {(formError || formInfo) && (
+            <div className={styles.formMessages}>
+              {formError && <div className={`${styles.messageBox} ${styles.messageBoxError}`}>{formError}</div>}
+              {formInfo && <div className={`${styles.messageBox} ${styles.messageBoxInfo}`}>{formInfo}</div>}
+            </div>
+          )}
+
+          {/* Submit */}
+          <div className={styles.submitRow}>
+            <button
+              className={styles.submitButton}
+              type="submit"
+              disabled={submitting || loadingCalendar}
+              aria-busy={submitting ? "true" : "false"}
+            >
+              {submitting ? "Rezerwuję…" : "Zamów usługę"}
+            </button>
+
+            <div className={styles.submitHint}>
+              <span className={styles.submitHintText}>
+                Po rezerwacji: zapis do Firebase → localStorage reserved=true → przekierowanie na “/”.
+              </span>
+            </div>
           </div>
+        </form>
 
-          <div className={styles.notice}>
-            <span className={styles.dotFree} /> wolne
-            <span className={styles.dotBusy} /> zajęte
-            <span className={styles.dotDisabled} /> zablokowane
+        <footer className={styles.cleaningFormFooter}>
+          <div className={styles.footerNote}>
+            <span className={styles.footerNoteTitle}>Uwaga:</span>{" "}
+            <span className={styles.footerNoteText}>
+              Jeśli ktoś zarezerwuje wybrany dzień w trakcie wypełniania formularza, przy finalizacji dostaniesz
+              komunikat i musisz wybrać inny termin.
+            </span>
           </div>
-        </section>
-
-        {(error || info) && (
-          <div className={`${styles.alert} ${error ? styles.alertError : styles.alertInfo}`}>
-            {error || info}
-          </div>
-        )}
-
-        <button className={styles.submit} type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Rezerwuję..." : "Zamów usługę"}
-        </button>
-
-        <div className={styles.smallPrint}>
-          Jedna usługa na dzień. Jeśli ktoś zarezerwuje termin w trakcie, zobaczysz komunikat i wybierzesz inny dzień.
-        </div>
-      </form>
+        </footer>
+      </div>
     </div>
   );
 }
