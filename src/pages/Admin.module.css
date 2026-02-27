@@ -1,0 +1,309 @@
+/* Admin.module.css */
+.page {
+  min-height: 100vh;
+  padding: 24px 18px 48px;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.header {
+  max-width: 1100px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.subtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.75);
+}
+
+.logoutButton {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.logoutButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.messages {
+  max-width: 1100px;
+  margin: 0 auto 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.message {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.messageError {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.messageInfo {
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.loading,
+.empty {
+  max-width: 1100px;
+  margin: 16px auto 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(229, 231, 235, 0.86);
+  font-weight: 700;
+}
+
+.grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 860px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card {
+  border-radius: 16px;
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cardRed {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+.cardYellow {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+.cardGreen {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.cardTop {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardDate {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(229, 231, 235, 0.9);
+  white-space: nowrap;
+}
+
+.cardId {
+  font-size: 12px;
+  color: rgba(229, 231, 235, 0.7);
+}
+
+.section {
+  border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.sectionTitle {
+  font-weight: 900;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.92);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.row:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(229, 231, 235, 0.72);
+}
+
+.value {
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(229, 231, 235, 0.95);
+  text-align: right;
+  word-break: break-word;
+}
+
+.services {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.serviceItem {
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(229, 231, 235, 0.95);
+}
+
+.footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  padding-top: 12px;
+}
+
+.earnings {
+  display: grid;
+  gap: 2px;
+}
+
+.earningsLabel {
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(229, 231, 235, 0.78);
+}
+
+.earningsValue {
+  font-size: 18px;
+  font-weight: 1000;
+  letter-spacing: 0.2px;
+}
+
+.deleteButton {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.6);
+  color: #fff;
+  font-weight: 900;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.deleteButton:hover {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* LOGIN */
+.loginWrap {
+  min-height: calc(100vh - 72px);
+  display: grid;
+  place-items: center;
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+
+.loginTitle {
+  font-size: 22px;
+  font-weight: 1000;
+}
+
+.loginSubtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(229, 231, 235, 0.78);
+}
+
+.loginForm {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.loginInput {
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e5e7eb;
+  outline: none;
+  font-weight: 800;
+}
+.loginInput:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.loginButton {
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.22);
+  color: #eafff3;
+  font-weight: 1000;
+  padding: 12px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.loginButton:hover {
+  background: rgba(34, 197, 94, 0.28);
+}
+
+.loginError {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  font-weight: 900;
+}
