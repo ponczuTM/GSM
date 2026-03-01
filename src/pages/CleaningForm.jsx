@@ -37,9 +37,9 @@ const startOfToday = () => {
 const HOURS = ["16:30", "17:00", "17:30", "18:00"];
 
 const PRICE = {
-  singleStandard: 30,
-  doubleStandard: 60,
-  balconyDoor: 70,
+  singleStandard: 20,
+  doubleStandard: 40,
+  balconyDoor: 50,
   largeGlassPerM2: 8,
 };
 
