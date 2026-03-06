@@ -1,16 +1,119 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import md5 from "blueimp-md5";
-import { database, ref, onValue, get, update, set } from "../FirebaseConfig";
+import { database, ref, onValue, set } from "../FirebaseConfig";
+import styles from "./AdminCars.module.css";
 
-/**
- * ADMIN PANEL:
- * - linki do podstron
- * - pełny odczyt i edycja: users, cars, rentals
- * - edycja: UI + edycja JSON
- *
- * Uwaga: PIN w plain nie istnieje w bazie (jest hash+salt). Admin widzi hash/salt i może resetować PIN.
- */
+/** =======================
+ *  TŁUMACZENIA PÓL (PL)
+ *  ======================= */
+const PATH_LABELS_PL = {
+  // wspólne / audit
+  audit: "Audyt",
+  "audit.createdAt": "Utworzono (data)",
+  "audit.createdBy": "Utworzył (ID)",
+  "audit.updatedAt": "Zaktualizowano (data)",
+  "audit.updatedBy": "Zaktualizował (ID)",
+
+  // === CARS ===
+  baseLocation: "Baza / lokalizacja",
+  equipment: "Wyposażenie",
+  "equipment.hasExtinguisher": "Gaśnica",
+  "equipment.hasFirstAidKit": "Apteczka",
+  "equipment.hasTriangle": "Trójkąt ostrzegawczy",
+  fleetCard: "Karta flotowa",
+  "fleetCard.shellCardPinEncrypted": "PIN karty Shell (zaszyfrowany)",
+  id: "ID",
+  isArchived: "Zarchiwizowane",
+  maintenance: "Serwis / utrzymanie",
+  "maintenance.currentMileage": "Aktualny przebieg (km)",
+  "maintenance.inspectionDueAt": "Przegląd ważny do",
+  "maintenance.insuranceDueAt": "Ubezpieczenie ważne do",
+  "maintenance.lastOilServiceAt": "Ostatnia wymiana oleju (data)",
+  "maintenance.lastOilServiceMileage": "Przebieg przy wymianie oleju (km)",
+  make: "Marka",
+  model: "Model",
+  plateNumber: "Numer rejestracyjny",
+  status: "Status",
+  vin: "VIN",
+
+  // === USERS (typowe) ===
+  name: "Imię i nazwisko",
+  role: "Rola",
+  isActive: "Aktywny",
+  pin: "PIN",
+  "pin.hashMd5": "Hash PIN (MD5)",
+  "pin.salt": "Sól (salt) PIN",
+
+  // === RENTALS (typowe) ===
+  carId: "ID auta",
+  borrowedByUserId: "ID użytkownika",
+  startAt: "Start",
+  endAt: "Koniec",
+  type: "Typ",
+};
+
+const KEY_LABELS_PL = {
+  // fallback po samym kluczu (gdy nie ma dopasowania po pełnej ścieżce)
+  createdAt: "Utworzono (data)",
+  createdBy: "Utworzył (ID)",
+  updatedAt: "Zaktualizowano (data)",
+  updatedBy: "Zaktualizował (ID)",
+
+  baseLocation: "Baza / lokalizacja",
+  equipment: "Wyposażenie",
+  hasExtinguisher: "Gaśnica",
+  hasFirstAidKit: "Apteczka",
+  hasTriangle: "Trójkąt ostrzegawczy",
+  fleetCard: "Karta flotowa",
+  shellCardPinEncrypted: "PIN karty Shell (zaszyfrowany)",
+  isArchived: "Zarchiwizowane",
+  maintenance: "Serwis / utrzymanie",
+  currentMileage: "Aktualny przebieg (km)",
+  inspectionDueAt: "Przegląd ważny do",
+  insuranceDueAt: "Ubezpieczenie ważne do",
+  lastOilServiceAt: "Ostatnia wymiana oleju (data)",
+  lastOilServiceMileage: "Przebieg przy wymianie oleju (km)",
+  make: "Marka",
+  model: "Model",
+  plateNumber: "Numer rejestracyjny",
+  status: "Status",
+  vin: "VIN",
+
+  name: "Imię i nazwisko",
+  role: "Rola",
+  isActive: "Aktywny",
+  pin: "PIN",
+  hashMd5: "Hash PIN (MD5)",
+  salt: "Sól (salt) PIN",
+
+  carId: "ID auta",
+  borrowedByUserId: "ID użytkownika",
+  startAt: "Start",
+  endAt: "Koniec",
+  type: "Typ",
+  id: "ID",
+};
+
+function translateLabelPL(path, rawLabel) {
+  // label typu "[0]" zostawiamy
+  if (rawLabel && /^\[\d+\]$/.test(rawLabel)) return rawLabel;
+
+  // 1) pełna ścieżka (najbardziej precyzyjna)
+  if (path && PATH_LABELS_PL[path]) return PATH_LABELS_PL[path];
+
+  // 2) sam label (czasem label==klucz)
+  if (rawLabel && KEY_LABELS_PL[rawLabel]) return KEY_LABELS_PL[rawLabel];
+
+  // 3) ostatni segment ścieżki
+  if (path) {
+    const last = path.split(".").slice(-1)[0];
+    if (KEY_LABELS_PL[last]) return KEY_LABELS_PL[last];
+  }
+
+  // 4) fallback
+  return rawLabel || (path ? path.split(".").slice(-1)[0] : "Pole");
+}
 
 function safe(v, fallback = "—") {
   if (v === null || v === undefined || v === "") return fallback;
@@ -26,16 +129,12 @@ function fmtPL(iso) {
   }
 }
 
-function pretty(obj) {
-  return JSON.stringify(obj, null, 2);
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
 }
 
-function parseJsonSafe(text) {
-  try {
-    return { ok: true, value: JSON.parse(text) };
-  } catch (e) {
-    return { ok: false, error: e?.message || "JSON parse error" };
-  }
+function isPlainObject(v) {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
 function randomSalt(len = 10) {
@@ -45,51 +144,341 @@ function randomSalt(len = 10) {
   return `slt_${out}`;
 }
 
-export default function AdminCars() {
-  const adminUserId = useMemo(
-    () => localStorage.getItem("userId") || "usr_admin_001",
-    []
+function typeOfValue(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v;
+}
+
+function pathJoin(path, key) {
+  if (!path) return String(key);
+  return `${path}.${String(key)}`;
+}
+
+function getAtPath(root, path) {
+  if (!path) return root;
+  const parts = path.split(".");
+  let cur = root;
+  for (const p of parts) {
+    if (cur === null || cur === undefined) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function setAtPath(root, path, value) {
+  const copy = deepClone(root);
+  if (!path) return value;
+
+  const parts = path.split(".");
+  let cur = copy;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    if (!isPlainObject(cur[k]) && !Array.isArray(cur[k])) {
+      cur[k] = {};
+    }
+    cur = cur[k];
+  }
+  cur[parts[parts.length - 1]] = value;
+  return copy;
+}
+
+function deleteAtPath(root, path) {
+  const copy = deepClone(root);
+  if (!path) return copy;
+  const parts = path.split(".");
+  let cur = copy;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    if (cur == null) return copy;
+    cur = cur[k];
+  }
+  const last = parts[parts.length - 1];
+
+  if (Array.isArray(cur)) {
+    const idx = Number(last);
+    if (!Number.isNaN(idx)) cur.splice(idx, 1);
+    return copy;
+  }
+
+  if (isPlainObject(cur)) {
+    delete cur[last];
+  }
+  return copy;
+}
+
+function coercePrimitive(type, raw) {
+  if (type === "number") {
+    if (raw === "" || raw === null || raw === undefined) return 0;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (type === "boolean") {
+    return !!raw;
+  }
+  if (type === "null") return null;
+  return String(raw ?? "");
+}
+
+/** =======================
+ *  UKRYWANIE AUDYTU / PÓL
+ *  ======================= */
+const HIDDEN_KEYS = new Set(["audit", "createdAt", "createdBy", "updatedAt", "updatedBy"]);
+
+// ukrywa:
+// - całe drzewo audit (audit oraz audit.*)
+// - oraz każdy klucz createdAt/createdBy/updatedAt/updatedBy gdziekolwiek się pojawi
+function isHiddenPath(path) {
+  if (!path) return false;
+
+  const parts = String(path).split(".");
+  // audit lub cokolwiek pod audit
+  if (parts[0] === "audit") return true;
+  // dowolny segment z listy ukrytych
+  return parts.some((p) => HIDDEN_KEYS.has(p));
+}
+
+function isIdPath(path) {
+    if (!path) return false;
+    const parts = String(path).split(".");
+    return parts[parts.length - 1] === "id";
+  }
+
+/** === Dynamic Editor (rekurencyjny) === **/
+function DynamicEditor({
+  rootValue,
+  currentPath = "",
+  label = "",
+  disabled = false,
+  onRootChange,
+  onDeletePath,
+}) {
+  // >>> najważniejsze: nic z audytu i nic z created*/updated* nie renderujemy
+  if (isHiddenPath(currentPath)) return null;
+
+  const value = getAtPath(rootValue, currentPath);
+  const t = typeOfValue(value);
+
+  // PRIMITIVES
+  if (t === "string" || t === "number" || t === "boolean" || t === "null" || t === "undefined") {
+    const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "value");
+    const showLabel = translateLabelPL(currentPath, rawLabel);
+
+    const isId = isIdPath(currentPath);
+    const effectiveDisabled = disabled || isId;
+
+    const canDelete = !!currentPath && !isId;
+
+    return (
+      <div className={styles.fieldRow}>
+        <div className={styles.fieldLabel}>
+          <span>{showLabel}</span>
+          {currentPath && <span className={styles.fieldMeta}>{t}{isId ? " · readonly" : ""}</span>}
+        </div>
+
+        <div className={styles.fieldControl}>
+          {t === "boolean" ? (
+            <select
+              className={styles.input}
+              disabled={effectiveDisabled}
+              value={value ? "true" : "false"}
+              onChange={(e) => {
+                if (isId) return;
+                const v = e.target.value === "true";
+                onRootChange(setAtPath(rootValue, currentPath, v));
+              }}
+            >
+              <option value="true">tak</option>
+              <option value="false">nie</option>
+            </select>
+          ) : t === "number" ? (
+            <input
+              className={styles.input}
+              disabled={effectiveDisabled}
+              type="number"
+              value={Number.isFinite(value) ? value : 0}
+              onChange={(e) => {
+                if (isId) return;
+                onRootChange(setAtPath(rootValue, currentPath, coercePrimitive("number", e.target.value)));
+              }}
+            />
+          ) : (
+            <input
+              className={styles.input}
+              disabled={effectiveDisabled}
+              value={value === null || value === undefined ? "" : String(value)}
+              placeholder={value === null ? "null" : value === undefined ? "undefined" : ""}
+              onChange={(e) => {
+                if (isId) return;
+                const newVal = coercePrimitive("string", e.target.value);
+                onRootChange(setAtPath(rootValue, currentPath, newVal));
+              }}
+            />
+          )}
+
+          {/* Dla id: żadnych akcji */}
+          {!isId && (
+            <div className={styles.fieldBtnRow}>
+              <button
+                className={styles.btnGhost}
+                disabled={disabled}
+                onClick={() => onRootChange(setAtPath(rootValue, currentPath, null))}
+                title="Ustaw null"
+              >
+                null
+              </button>
+
+              {canDelete && (
+                <button
+                  className={styles.btnDanger}
+                  disabled={disabled}
+                  onClick={() => onDeletePath(currentPath)}
+                  title="Usuń to pole / element"
+                >
+                  Usuń
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ARRAY
+  if (t === "array") {
+    const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "array");
+    const showLabel = translateLabelPL(currentPath, rawLabel);
+    const arr = Array.isArray(value) ? value : [];
+
+    return (
+      <div className={styles.nodeBox}>
+        <div className={styles.nodeHeader}>
+          <div className={styles.nodeTitle}>
+            {showLabel} <span className={styles.nodeMeta}>(tablica · {arr.length})</span>
+          </div>
+
+          <div className={styles.nodeActions}>
+            {currentPath && (
+              <button
+                className={styles.btnDanger}
+                disabled={disabled}
+                onClick={() => onDeletePath(currentPath)}
+                title="Usuń tablicę"
+              >
+                Usuń
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.nodeBody}>
+          {arr.length === 0 ? (
+            <div className={styles.muted}>Pusta tablica.</div>
+          ) : (
+            arr.map((_, idx) => (
+              <div key={idx} className={styles.nodeChild}>
+                <DynamicEditor
+                  rootValue={rootValue}
+                  currentPath={pathJoin(currentPath, idx)}
+                  label={`[${idx}]`}
+                  disabled={disabled}
+                  onRootChange={onRootChange}
+                  onDeletePath={onDeletePath}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // OBJECT
+  const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "object");
+  const showLabel = translateLabelPL(currentPath, rawLabel);
+  const obj = isPlainObject(value) ? value : {};
+
+  return (
+    <ObjectNodeEditor
+      rootValue={rootValue}
+      currentPath={currentPath}
+      label={showLabel}
+      obj={obj}
+      disabled={disabled}
+      onRootChange={onRootChange}
+      onDeletePath={onDeletePath}
+    />
   );
+}
+
+function ObjectNodeEditor({ rootValue, currentPath, label, obj, disabled, onRootChange, onDeletePath }) {
+  // filtrujemy klucze, żeby audit + created*/updated* nigdy nie weszły do UI
+  const entries = Object.entries(obj || {})
+    .filter(([k]) => !isHiddenPath(pathJoin(currentPath, k)))
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  // jeśli po filtracji nic nie zostało, nie pokazuj pustego boxa
+  if (entries.length === 0) return null;
+
+  return (
+    <div className={styles.nodeBox}>
+      <div className={styles.nodeHeader}>
+        <div className={styles.nodeTitle}>
+          {label} <span className={styles.nodeMeta}>(obiekt · {entries.length})</span>
+        </div>
+
+        <div className={styles.nodeActions}>
+          {currentPath && (
+            <button
+              className={styles.btnDanger}
+              disabled={disabled}
+              onClick={() => onDeletePath(currentPath)}
+              title="Usuń obiekt"
+            >
+              Usuń
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className={styles.nodeBody}>
+        {entries.map(([k]) => (
+          <div key={k} className={styles.nodeChild}>
+            <DynamicEditor
+              rootValue={rootValue}
+              currentPath={pathJoin(currentPath, k)}
+              label={k}
+              disabled={disabled}
+              onRootChange={onRootChange}
+              onDeletePath={onDeletePath}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function AdminCars() {
+  const adminUserId = useMemo(() => localStorage.getItem("userId") || "usr_admin_001", []);
 
   const [users, setUsers] = useState([]);
   const [cars, setCars] = useState([]);
   const [rentals, setRentals] = useState([]);
 
   const [loading, setLoading] = useState(true);
-
-  // Editor state
   const [activeTab, setActiveTab] = useState("USERS"); // USERS | CARS | RENTALS
 
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedCarId, setSelectedCarId] = useState("");
   const [selectedRentalId, setSelectedRentalId] = useState("");
 
-  // JSON editors (full control)
-  const [userJson, setUserJson] = useState("");
-  const [carJson, setCarJson] = useState("");
-  const [rentalJson, setRentalJson] = useState("");
+  // drafty do edycji (edytujesz w UI, zapisujesz jednym set())
+  const [draftUser, setDraftUser] = useState(null);
+  const [draftCar, setDraftCar] = useState(null);
+  const [draftRental, setDraftRental] = useState(null);
 
-  // “friendly” editor fields for rentals
-  const [rentalEdit, setRentalEdit] = useState({
-    carId: "",
-    type: "NOW",
-    status: "ACTIVE",
-    startAt: "",
-    endAt: "",
-    borrowedByUserId: "",
-    returnedByUserId: "",
-    returnedAt: "",
-  });
-
-  // “friendly” editor fields for users
-  const [userEdit, setUserEdit] = useState({
-    name: "",
-    role: "USER",
-    isActive: true,
-  });
-  const [newPin, setNewPin] = useState("");
-
-  // Messages
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -122,7 +511,6 @@ export default function AdminCars() {
       (snap) => {
         const val = snap.val();
         const arr = val ? Object.values(val) : [];
-        // sort: najnowsze createdAt pierwsze
         arr.sort((a, b) => String(b?.audit?.createdAt || "").localeCompare(String(a?.audit?.createdAt || "")));
         setRentals(arr);
         setLoading(false);
@@ -159,285 +547,148 @@ export default function AdminCars() {
     return m;
   }, [rentals]);
 
+  function setMessage(type, text) {
+    setMsg({ type, text });
+  }
+
   // ===== selection handlers =====
   function selectUser(id) {
     setSelectedUserId(id);
+    setSelectedCarId("");
+    setSelectedRentalId("");
+    setDraftCar(null);
+    setDraftRental(null);
+
     const u = usersById.get(id);
     if (!u) return;
 
-    setUserEdit({
-      name: safe(u.name, ""),
-      role: safe(u.role, "USER"),
-      isActive: !!u.isActive,
-    });
-    setUserJson(pretty(u));
-    setNewPin("");
+    setDraftUser(deepClone(u));
     setMsg(null);
   }
 
   function selectCar(id) {
     setSelectedCarId(id);
+    setSelectedUserId("");
+    setSelectedRentalId("");
+    setDraftUser(null);
+    setDraftRental(null);
+
     const c = carsById.get(id);
     if (!c) return;
-    setCarJson(pretty(c));
+
+    setDraftCar(deepClone(c));
     setMsg(null);
   }
 
   function selectRental(id) {
     setSelectedRentalId(id);
+    setSelectedUserId("");
+    setSelectedCarId("");
+    setDraftUser(null);
+    setDraftCar(null);
+
     const r = rentalsById.get(id);
     if (!r) return;
 
-    setRentalEdit({
-      carId: safe(r.carId, ""),
-      type: safe(r.type, "NOW"),
-      status: safe(r.status, "ACTIVE"),
-      startAt: safe(r.startAt, ""),
-      endAt: r.endAt === null || r.endAt === undefined ? "" : String(r.endAt),
-      borrowedByUserId: safe(r.borrowedByUserId, ""),
-      returnedByUserId: r.returnedByUserId === null || r.returnedByUserId === undefined ? "" : String(r.returnedByUserId),
-      returnedAt: r.returnedAt === null || r.returnedAt === undefined ? "" : String(r.returnedAt),
-    });
-
-    setRentalJson(pretty(r));
+    setDraftRental(deepClone(r));
     setMsg(null);
   }
 
-  // ===== write helpers =====
-  function setMessage(type, text) {
-    setMsg({ type, text });
+  function tabClass(isActive) {
+    return isActive ? `${styles.tabBtn} ${styles.tabBtnActive}` : styles.tabBtn;
   }
 
-  async function adminUpdate(path, patch) {
-    const nowIso = new Date().toISOString();
-    const patchWithAudit = {
-      ...patch,
-      "audit/updatedAt": nowIso,
-      "audit/updatedBy": adminUserId,
-    };
-    await update(ref(database, path), patchWithAudit);
+  function listItemClass(isActive) {
+    return isActive ? `${styles.listItemBtn} ${styles.listItemBtnActive}` : styles.listItemBtn;
   }
 
-  // ===== USERS actions =====
-  async function saveUserFriendly() {
-    if (!selectedUserId) return;
-    const name = userEdit.name.trim().replace(/\s+/g, " ");
-    if (!name) {
-      setMessage("error", "Nazwa użytkownika nie może być pusta.");
+  // ===== SAVE helpers (set whole object) =====
+  async function saveWhole(kind) {
+    // kind: "users" | "cars" | "rentals"
+    let id = "";
+    let obj = null;
+
+    if (kind === "users") {
+      id = selectedUserId;
+      obj = draftUser;
+    } else if (kind === "cars") {
+      id = selectedCarId;
+      obj = draftCar;
+    } else {
+      id = selectedRentalId;
+      obj = draftRental;
+    }
+
+    if (!id || !obj) return;
+
+    if (!obj.id || obj.id !== id) {
+      setMessage("error", "Pole id musi istnieć i być zgodne z wybranym rekordem.");
       return;
     }
 
     setBusy(true);
     setMsg(null);
+
     try {
-      await adminUpdate(`users/${selectedUserId}`, {
-        name,
-        role: userEdit.role,
-        isActive: !!userEdit.isActive,
-      });
-      setMessage("ok", "Zapisano użytkownika.");
+      const nowIso = new Date().toISOString();
+      const next = deepClone(obj);
+      next.audit = next.audit || {};
+      next.audit.updatedAt = nowIso;
+      next.audit.updatedBy = adminUserId;
+
+      await set(ref(database, `${kind}/${id}`), next);
+
+      setMessage("ok", `Zapisano ${kind.toUpperCase()} (wszystkie pola).`);
+
+      if (kind === "users") setDraftUser(next);
+      if (kind === "cars") setDraftCar(next);
+      if (kind === "rentals") setDraftRental(next);
     } catch (e) {
       console.error(e);
-      setMessage("error", "Błąd zapisu użytkownika.");
+      setMessage("error", "Błąd zapisu do bazy.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function resetUserPin() {
-    if (!selectedUserId) return;
+  async function resetPinQuick() {
+    if (!selectedUserId || !draftUser) return;
 
-    const pin = newPin.trim();
+    const plainPin = prompt("Podaj nowy PIN (4–8 cyfr):");
+    if (plainPin === null) return;
+
+    const pin = String(plainPin).trim();
     if (!/^[0-9]{4,8}$/.test(pin)) {
       setMessage("error", "PIN musi mieć 4–8 cyfr.");
       return;
     }
 
-    setBusy(true);
-    setMsg(null);
-    try {
-      const salt = randomSalt(10);
-      const hashMd5 = md5(`${salt}${pin}`);
+    const salt = randomSalt(10);
+    const hashMd5 = md5(`${salt}${pin}`);
 
-      // nie używam adminUpdate, bo edytuję pin.* + audit
-      await adminUpdate(`users/${selectedUserId}`, {
-        "pin/salt": salt,
-        "pin/hashMd5": hashMd5,
-      });
+    const next = deepClone(draftUser);
+    next.pin = next.pin || {};
+    next.pin.salt = salt;
+    next.pin.hashMd5 = hashMd5;
 
-      setNewPin("");
-      setMessage("ok", "Zresetowano PIN (zapisano nowy hash+salt).");
-    } catch (e) {
-      console.error(e);
-      setMessage("error", "Błąd resetu PIN.");
-    } finally {
-      setBusy(false);
-    }
+    setDraftUser(next);
+    setMessage("ok", "Ustawiono nowy PIN (hash+salt) w edytorze. Kliknij Zapisz, żeby wysłać do DB.");
   }
 
-  async function saveUserJson() {
-    if (!selectedUserId) return;
-
-    const parsed = parseJsonSafe(userJson);
-    if (!parsed.ok) {
-      setMessage("error", `Błędny JSON: ${parsed.error}`);
-      return;
-    }
-    const obj = parsed.value;
-
-    // minimalny sanity: id musi się zgadzać (żeby nie wpuścić “podmiany”)
-    if (!obj?.id || obj.id !== selectedUserId) {
-      setMessage("error", "JSON musi zawierać id zgodne z wybranym rekordem.");
-      return;
-    }
-
-    setBusy(true);
-    setMsg(null);
-    try {
-      // dopnij audit.updated*
-      const nowIso = new Date().toISOString();
-      obj.audit = obj.audit || {};
-      obj.audit.updatedAt = nowIso;
-      obj.audit.updatedBy = adminUserId;
-
-      await set(ref(database, `users/${selectedUserId}`), obj);
-      setMessage("ok", "Zapisano USER (pełny JSON).");
-    } catch (e) {
-      console.error(e);
-      setMessage("error", "Błąd zapisu JSON usera.");
-    } finally {
-      setBusy(false);
-    }
+  function deletePathInDraft(draft, setDraftFn, path) {
+    const next = deleteAtPath(draft, path);
+    setDraftFn(next);
   }
-
-  // ===== CARS actions =====
-  async function saveCarJson() {
-    if (!selectedCarId) return;
-
-    const parsed = parseJsonSafe(carJson);
-    if (!parsed.ok) {
-      setMessage("error", `Błędny JSON: ${parsed.error}`);
-      return;
-    }
-    const obj = parsed.value;
-
-    if (!obj?.id || obj.id !== selectedCarId) {
-      setMessage("error", "JSON musi zawierać id zgodne z wybranym rekordem.");
-      return;
-    }
-
-    setBusy(true);
-    setMsg(null);
-    try {
-      const nowIso = new Date().toISOString();
-      obj.audit = obj.audit || {};
-      obj.audit.updatedAt = nowIso;
-      obj.audit.updatedBy = adminUserId;
-
-      await set(ref(database, `cars/${selectedCarId}`), obj);
-      setMessage("ok", "Zapisano CAR (pełny JSON).");
-    } catch (e) {
-      console.error(e);
-      setMessage("error", "Błąd zapisu JSON auta.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ===== RENTALS actions =====
-  async function saveRentalFriendly() {
-    if (!selectedRentalId) return;
-
-    // minimalne sanity
-    if (!rentalEdit.carId) {
-      setMessage("error", "Wybierz carId.");
-      return;
-    }
-    if (!rentalEdit.borrowedByUserId) {
-      setMessage("error", "Wybierz borrowedByUserId.");
-      return;
-    }
-    if (!rentalEdit.startAt) {
-      setMessage("error", "startAt nie może być puste.");
-      return;
-    }
-
-    // endAt / returnedAt mogą być puste => null
-    const patch = {
-      carId: rentalEdit.carId,
-      type: rentalEdit.type,
-      status: rentalEdit.status,
-      startAt: rentalEdit.startAt,
-      endAt: rentalEdit.endAt.trim() === "" ? null : rentalEdit.endAt.trim(),
-      borrowedByUserId: rentalEdit.borrowedByUserId,
-      returnedByUserId: rentalEdit.returnedByUserId.trim() === "" ? null : rentalEdit.returnedByUserId.trim(),
-      returnedAt: rentalEdit.returnedAt.trim() === "" ? null : rentalEdit.returnedAt.trim(),
-    };
-
-    setBusy(true);
-    setMsg(null);
-    try {
-      await adminUpdate(`rentals/${selectedRentalId}`, patch);
-      setMessage("ok", "Zapisano RENTAL (pola kluczowe).");
-    } catch (e) {
-      console.error(e);
-      setMessage("error", "Błąd zapisu rentals.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveRentalJson() {
-    if (!selectedRentalId) return;
-
-    const parsed = parseJsonSafe(rentalJson);
-    if (!parsed.ok) {
-      setMessage("error", `Błędny JSON: ${parsed.error}`);
-      return;
-    }
-    const obj = parsed.value;
-
-    if (!obj?.id || obj.id !== selectedRentalId) {
-      setMessage("error", "JSON musi zawierać id zgodne z wybranym rekordem.");
-      return;
-    }
-
-    setBusy(true);
-    setMsg(null);
-    try {
-      const nowIso = new Date().toISOString();
-      obj.audit = obj.audit || {};
-      obj.audit.updatedAt = nowIso;
-      obj.audit.updatedBy = adminUserId;
-
-      await set(ref(database, `rentals/${selectedRentalId}`), obj);
-      setMessage("ok", "Zapisano RENTAL (pełny JSON).");
-    } catch (e) {
-      console.error(e);
-      setMessage("error", "Błąd zapisu JSON rentals.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ===== UI =====
-  const wrapper = { maxWidth: 1400, margin: "0 auto", padding: 18 };
-  const box = {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 16,
-    background: "#fff",
-    marginBottom: 14,
-  };
 
   return (
-    <div style={wrapper}>
-      <h2 style={{ marginBottom: 10 }}>Admin Panel (pełny podgląd + edycja)</h2>
+    <div className={styles.wrapper}>
+      <h2 className={styles.pageTitle}>Admin Panel (pełny podgląd + edycja pól, bez JSON)</h2>
 
       {/* NAV LINKS */}
-      <div style={box}>
-        <h3 style={{ marginTop: 0 }}>Skróty</h3>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div className={styles.box}>
+        <h3 className={styles.boxTitle}>Skróty</h3>
+
+        <div className={styles.navRow}>
           <NavBtn to="/addnewcar" text="AddNewCar" />
           <NavBtn to="/addnewusers" text="AddNewUsers" />
           <NavBtn to="/showallcars" text="ShowAllCars" />
@@ -445,42 +696,34 @@ export default function AdminCars() {
           <NavBtn to="/carreservation" text="CarReservation" />
         </div>
 
-        <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
-          Panel poniżej pokazuje i pozwala edytować <code>/users</code>, <code>/cars</code>, <code>/rentals</code>.
+        <div className={styles.helpText}>
+          Panel poniżej pokazuje i pozwala edytować <code>/users</code>, <code>/cars</code>, <code>/rentals</code> —
+          każde pole, bez grzebania w JSON (podpisy pól po polsku).
         </div>
       </div>
 
       {/* MESSAGE */}
       {msg && (
-        <div
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 14,
-            border: "1px solid",
-            borderColor: msg.type === "ok" ? "#86efac" : "#fca5a5",
-            background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2",
-          }}
-        >
+        <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
           {msg.text}
         </div>
       )}
 
       {loading ? (
-        <div style={box}>Ładuję dane...</div>
+        <div className={styles.box}>Ładuję dane...</div>
       ) : (
         <>
           {/* TABS */}
-          <div style={box}>
-            <h3 style={{ marginTop: 0 }}>Dane</h3>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setActiveTab("USERS")} style={tabBtn(activeTab === "USERS")}>
+          <div className={styles.box}>
+            <h3 className={styles.boxTitle}>Dane</h3>
+            <div className={styles.tabsRow}>
+              <button onClick={() => setActiveTab("USERS")} className={tabClass(activeTab === "USERS")}>
                 Users ({users.length})
               </button>
-              <button onClick={() => setActiveTab("CARS")} style={tabBtn(activeTab === "CARS")}>
+              <button onClick={() => setActiveTab("CARS")} className={tabClass(activeTab === "CARS")}>
                 Cars ({cars.length})
               </button>
-              <button onClick={() => setActiveTab("RENTALS")} style={tabBtn(activeTab === "RENTALS")}>
+              <button onClick={() => setActiveTab("RENTALS")} className={tabClass(activeTab === "RENTALS")}>
                 Rentals ({rentals.length})
               </button>
             </div>
@@ -488,27 +731,25 @@ export default function AdminCars() {
 
           {/* USERS */}
           {activeTab === "USERS" && (
-            <div style={box}>
-              <h3 style={{ marginTop: 0 }}>USERS — pełny komplet</h3>
+            <div className={styles.box}>
+              <h3 className={styles.boxTitle}>USERS — edycja każdego pola</h3>
 
-              <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 14 }}>
+              <div className={styles.gridUsers}>
                 {/* list */}
-                <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ padding: 10, background: "#fafafa", fontWeight: 900 }}>
-                    Lista users
-                  </div>
-                  <div style={{ maxHeight: 560, overflow: "auto" }}>
+                <div className={styles.listCard}>
+                  <div className={styles.listHeader}>Lista users</div>
+                  <div className={styles.listBody}>
                     {users.map((u) => (
                       <button
                         key={u.id}
                         onClick={() => selectUser(u.id)}
-                        style={listItemBtn(selectedUserId === u.id)}
+                        className={listItemClass(selectedUserId === u.id)}
                       >
-                        <div style={{ fontWeight: 900 }}>{safe(u.name)}</div>
-                        <div style={{ fontSize: 12, opacity: 0.75 }}>
-                          id: {u.id} · role: {safe(u.role)} · active: {String(!!u.isActive)}
+                        <div className={styles.itemTitle}>{safe(u.name)}</div>
+                        <div className={styles.itemMeta}>
+                          id: {u.id} · rola: {safe(u.role)} · aktywny: {String(!!u.isActive)}
                         </div>
-                        <div style={{ fontSize: 12, opacity: 0.75 }}>
+                        <div className={styles.itemMeta}>
                           pin.hashMd5: <code>{safe(u?.pin?.hashMd5)}</code>
                           <br />
                           pin.salt: <code>{safe(u?.pin?.salt)}</code>
@@ -520,88 +761,33 @@ export default function AdminCars() {
 
                 {/* editor */}
                 <div>
-                  {!selectedUserId ? (
-                    <div style={{ opacity: 0.8 }}>Wybierz użytkownika z listy.</div>
+                  {!selectedUserId || !draftUser ? (
+                    <div className={styles.muted}>Wybierz użytkownika z listy.</div>
                   ) : (
                     <>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                        <div>
-                          <label style={label}>Name</label>
-                          <input
-                            style={input}
-                            value={userEdit.name}
-                            onChange={(e) => setUserEdit((p) => ({ ...p, name: e.target.value }))}
-                            disabled={busy}
-                          />
-                        </div>
+                      <div className={styles.actionsRow}>
+                        <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
+                          Zapisz USER (wszystkie pola)
+                        </button>
 
-                        <div>
-                          <label style={label}>Role</label>
-                          <select
-                            style={input}
-                            value={userEdit.role}
-                            onChange={(e) => setUserEdit((p) => ({ ...p, role: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="USER">USER</option>
-                            <option value="ADMIN">ADMIN</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={label}>isActive</label>
-                          <select
-                            style={input}
-                            value={userEdit.isActive ? "true" : "false"}
-                            onChange={(e) => setUserEdit((p) => ({ ...p, isActive: e.target.value === "true" }))}
-                            disabled={busy}
-                          >
-                            <option value="true">true</option>
-                            <option value="false">false</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button onClick={saveUserFriendly} disabled={busy} style={btnPrimary(busy)}>
-                          Zapisz (pola)
+                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnDanger}>
+                          Reset PIN (szybko)
                         </button>
                       </div>
 
-                      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
-                        <h4 style={{ margin: "0 0 8px 0" }}>Reset PIN (ustaw nowy)</h4>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
-                          <input
-                            style={input}
-                            value={newPin}
-                            onChange={(e) => setNewPin(e.target.value)}
-                            placeholder="4–8 cyfr"
-                            inputMode="numeric"
-                            disabled={busy}
-                          />
-                          <button onClick={resetUserPin} disabled={busy} style={btnDanger(busy)}>
-                            Reset PIN
-                          </button>
-                        </div>
-                        <div style={{ marginTop: 6, opacity: 0.7, fontSize: 12 }}>
-                          Admin widzi tylko hash+salt. Plain PIN nie istnieje w DB.
-                        </div>
+                      <div className={styles.smallNote}>
+                        Możesz edytować też ręcznie <code>pin.hashMd5</code> / <code>pin.salt</code> poniżej, ale reset
+                        robi to automatem.
                       </div>
 
-                      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
-                        <h4 style={{ margin: "0 0 8px 0" }}>Pełna edycja JSON</h4>
-                        <textarea
-                          style={textarea}
-                          value={userJson}
-                          onChange={(e) => setUserJson(e.target.value)}
-                          disabled={busy}
-                        />
-                        <div style={{ marginTop: 10 }}>
-                          <button onClick={saveUserJson} disabled={busy} style={btnPrimary(busy)}>
-                            Zapisz USER (JSON)
-                          </button>
-                        </div>
-                      </div>
+                      <DynamicEditor
+                        rootValue={draftUser}
+                        currentPath=""
+                        label="Użytkownik"
+                        disabled={busy}
+                        onRootChange={setDraftUser}
+                        onDeletePath={(p) => deletePathInDraft(draftUser, setDraftUser, p)}
+                      />
                     </>
                   )}
                 </div>
@@ -611,27 +797,27 @@ export default function AdminCars() {
 
           {/* CARS */}
           {activeTab === "CARS" && (
-            <div style={box}>
-              <h3 style={{ marginTop: 0 }}>CARS — pełny komplet</h3>
+            <div className={styles.box}>
+              <h3 className={styles.boxTitle}>CARS — edycja każdego pola</h3>
 
-              <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 14 }}>
+              <div className={styles.gridCars}>
                 {/* list */}
-                <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ padding: 10, background: "#fafafa", fontWeight: 900 }}>
-                    Lista cars
-                  </div>
-                  <div style={{ maxHeight: 560, overflow: "auto" }}>
+                <div className={styles.listCard}>
+                  <div className={styles.listHeader}>Lista cars</div>
+                  <div className={styles.listBody}>
                     {cars.map((c) => (
                       <button
                         key={c.id}
                         onClick={() => selectCar(c.id)}
-                        style={listItemBtn(selectedCarId === c.id)}
+                        className={listItemClass(selectedCarId === c.id)}
                       >
-                        <div style={{ fontWeight: 900 }}>{safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}</div>
-                        <div style={{ fontSize: 12, opacity: 0.75 }}>
-                          id: {c.id} · status: {safe(c.status)} · archived: {String(!!c.isArchived)}
+                        <div className={styles.itemTitle}>
+                          {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}
                         </div>
-                        <div style={{ fontSize: 12, opacity: 0.75 }}>
+                        <div className={styles.itemMeta}>
+                          id: {c.id} · status: {safe(c.status)} · zarchiwizowane: {String(!!c.isArchived)}
+                        </div>
+                        <div className={styles.itemMeta}>
                           fleetCard.shellCardPinEncrypted: <code>{safe(c?.fleetCard?.shellCardPinEncrypted)}</code>
                         </div>
                       </button>
@@ -641,26 +827,24 @@ export default function AdminCars() {
 
                 {/* editor */}
                 <div>
-                  {!selectedCarId ? (
-                    <div style={{ opacity: 0.8 }}>Wybierz auto z listy.</div>
+                  {!selectedCarId || !draftCar ? (
+                    <div className={styles.muted}>Wybierz auto z listy.</div>
                   ) : (
                     <>
-                      <h4 style={{ marginTop: 0 }}>Pełna edycja JSON auta</h4>
-                      <textarea
-                        style={textarea}
-                        value={carJson}
-                        onChange={(e) => setCarJson(e.target.value)}
-                        disabled={busy}
-                      />
-                      <div style={{ marginTop: 10 }}>
-                        <button onClick={saveCarJson} disabled={busy} style={btnPrimary(busy)}>
-                          Zapisz CAR (JSON)
+                      <div className={styles.actionsRow}>
+                        <button onClick={() => saveWhole("cars")} disabled={busy} className={styles.btnPrimary}>
+                          Zapisz CAR (wszystkie pola)
                         </button>
                       </div>
 
-                      <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
-                        Możesz zmienić absolutnie wszystko, łącznie z faults[] i fleetCard. To admin panel.
-                      </div>
+                      <DynamicEditor
+                        rootValue={draftCar}
+                        currentPath=""
+                        label="Auto"
+                        disabled={busy}
+                        onRootChange={setDraftCar}
+                        onDeletePath={(p) => deletePathInDraft(draftCar, setDraftCar, p)}
+                      />
                     </>
                   )}
                 </div>
@@ -670,38 +854,36 @@ export default function AdminCars() {
 
           {/* RENTALS */}
           {activeTab === "RENTALS" && (
-            <div style={box}>
-              <h3 style={{ marginTop: 0 }}>RENTALS — pełny komplet (NOW + RESERVATION + historia)</h3>
+            <div className={styles.box}>
+              <h3 className={styles.boxTitle}>RENTALS — edycja każdego pola</h3>
 
-              <div style={{ display: "grid", gridTemplateColumns: "460px 1fr", gap: 14 }}>
+              <div className={styles.gridRentals}>
                 {/* list */}
-                <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ padding: 10, background: "#fafafa", fontWeight: 900 }}>
-                    Lista rentals
-                  </div>
-                  <div style={{ maxHeight: 560, overflow: "auto" }}>
+                <div className={styles.listCard}>
+                  <div className={styles.listHeader}>Lista rentals</div>
+                  <div className={styles.listBody}>
                     {rentals.map((r) => {
                       const car = carsById.get(r.carId);
                       const u = usersById.get(r.borrowedByUserId);
                       const type = (r.type || "").toUpperCase();
                       const status = (r.status || "").toUpperCase();
-                      const activeLabel = status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
+                      const activeLabel =
+                        status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
 
                       return (
                         <button
                           key={r.id}
                           onClick={() => selectRental(r.id)}
-                          style={listItemBtn(selectedRentalId === r.id)}
+                          className={listItemClass(selectedRentalId === r.id)}
                         >
-                          <div style={{ fontWeight: 900 }}>
+                          <div className={styles.itemTitle}>
                             [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)}
                           </div>
-                          <div style={{ fontSize: 12, opacity: 0.75 }}>
-                            rentalId: {r.id} · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · end: {fmtPL(r.endAt)}
+                          <div className={styles.itemMeta}>
+                            rentalId: {r.id} · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · end:{" "}
+                            {fmtPL(r.endAt)}
                           </div>
-                          <div style={{ fontSize: 12, opacity: 0.75 }}>
-                            user: {safe(u?.name, r.borrowedByUserId)}
-                          </div>
+                          <div className={styles.itemMeta}>user: {safe(u?.name, r.borrowedByUserId)}</div>
                         </button>
                       );
                     })}
@@ -710,147 +892,24 @@ export default function AdminCars() {
 
                 {/* editor */}
                 <div>
-                  {!selectedRentalId ? (
-                    <div style={{ opacity: 0.8 }}>Wybierz rental z listy.</div>
+                  {!selectedRentalId || !draftRental ? (
+                    <div className={styles.muted}>Wybierz rental z listy.</div>
                   ) : (
                     <>
-                      <h4 style={{ marginTop: 0 }}>Szybka edycja kluczowych pól</h4>
-
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                        <div>
-                          <label style={label}>carId (lista aut)</label>
-                          <select
-                            style={input}
-                            value={rentalEdit.carId}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, carId: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="">— wybierz auto —</option>
-                            {cars.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)} ({c.id})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={label}>type</label>
-                          <select
-                            style={input}
-                            value={rentalEdit.type}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, type: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="NOW">NOW</option>
-                            <option value="RESERVATION">RESERVATION</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={label}>status</label>
-                          <select
-                            style={input}
-                            value={rentalEdit.status}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, status: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="ACTIVE">ACTIVE</option>
-                            <option value="CLOSED">CLOSED</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                            <option value="FULFILLED">FULFILLED</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={label}>startAt (ISO)</label>
-                          <input
-                            style={input}
-                            value={rentalEdit.startAt}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, startAt: e.target.value }))}
-                            disabled={busy}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={label}>endAt (ISO lub puste => null)</label>
-                          <input
-                            style={input}
-                            value={rentalEdit.endAt}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, endAt: e.target.value }))}
-                            disabled={busy}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={label}>returnedAt (ISO lub puste => null)</label>
-                          <input
-                            style={input}
-                            value={rentalEdit.returnedAt}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, returnedAt: e.target.value }))}
-                            disabled={busy}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={label}>borrowedByUserId (lista users)</label>
-                          <select
-                            style={input}
-                            value={rentalEdit.borrowedByUserId}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, borrowedByUserId: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="">— wybierz usera —</option>
-                            {users.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {safe(u.name)} ({u.id})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={label}>returnedByUserId (lista users / puste => null)</label>
-                          <select
-                            style={input}
-                            value={rentalEdit.returnedByUserId}
-                            onChange={(e) => setRentalEdit((p) => ({ ...p, returnedByUserId: e.target.value }))}
-                            disabled={busy}
-                          >
-                            <option value="">— null —</option>
-                            {users.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {safe(u.name)} ({u.id})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button onClick={saveRentalFriendly} disabled={busy} style={btnPrimary(busy)}>
-                          Zapisz (pola)
+                      <div className={styles.actionsRow}>
+                        <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
+                          Zapisz RENTAL (wszystkie pola)
                         </button>
                       </div>
 
-                      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 }}>
-                        <h4 style={{ margin: "0 0 8px 0" }}>Pełna edycja JSON rentals</h4>
-                        <textarea
-                          style={textarea}
-                          value={rentalJson}
-                          onChange={(e) => setRentalJson(e.target.value)}
-                          disabled={busy}
-                        />
-                        <div style={{ marginTop: 10 }}>
-                          <button onClick={saveRentalJson} disabled={busy} style={btnPrimary(busy)}>
-                            Zapisz RENTAL (JSON)
-                          </button>
-                        </div>
-
-                        <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
-                          Tu możesz dopisać np. <code>adminCorrections[]</code> ręcznie albo edytować wszystko 1:1.
-                        </div>
-                      </div>
+                      <DynamicEditor
+                        rootValue={draftRental}
+                        currentPath=""
+                        label="Wypożyczenie"
+                        disabled={busy}
+                        onRootChange={setDraftRental}
+                        onDeletePath={(p) => deletePathInDraft(draftRental, setDraftRental, p)}
+                      />
                     </>
                   )}
                 </div>
@@ -860,7 +919,7 @@ export default function AdminCars() {
         </>
       )}
 
-      <div style={{ opacity: 0.65, fontSize: 12 }}>
+      <div className={styles.footerNote}>
         Realtime: users={users.length}, cars={cars.length}, rentals={rentals.length}
       </div>
     </div>
@@ -869,87 +928,8 @@ export default function AdminCars() {
 
 function NavBtn({ to, text }) {
   return (
-    <Link
-      to={to}
-      style={{
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #111",
-        background: "#111",
-        color: "#fff",
-        textDecoration: "none",
-        fontWeight: 900,
-      }}
-    >
+    <Link to={to} className={styles.navBtn}>
       {text}
     </Link>
   );
-}
-
-function tabBtn(active) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: active ? "#111" : "#fff",
-    color: active ? "#fff" : "#111",
-    cursor: "pointer",
-    fontWeight: 900,
-  };
-}
-
-function listItemBtn(active) {
-  return {
-    width: "100%",
-    textAlign: "left",
-    padding: 10,
-    border: "none",
-    borderBottom: "1px solid #f0f0f0",
-    background: active ? "#f6f6f6" : "#fff",
-    cursor: "pointer",
-  };
-}
-
-const label = { display: "block", fontSize: 12, opacity: 0.8, marginBottom: 6 };
-const input = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #ccc",
-  outline: "none",
-};
-
-const textarea = {
-  width: "100%",
-  minHeight: 380,
-  padding: 12,
-  borderRadius: 10,
-  border: "1px solid #ccc",
-  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-  fontSize: 12,
-  outline: "none",
-};
-
-function btnPrimary(disabled) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: disabled ? "#eee" : "#111",
-    color: disabled ? "#111" : "#fff",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontWeight: 900,
-  };
-}
-
-function btnDanger(disabled) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #7f1d1d",
-    background: disabled ? "#eee" : "#7f1d1d",
-    color: disabled ? "#111" : "#fff",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontWeight: 900,
-  };
 }
