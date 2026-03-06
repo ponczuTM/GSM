@@ -19,7 +19,7 @@ function NavBtn({ to, text }) {
 export default function Navbar() {
   return (
     <div className={styles.box}>
-      <h3 className={styles.boxTitle}>Skróty</h3>
+      <h3 className={styles.boxTitle}>ZARZĄDZANIE FLOTĄ EXON</h3>
 
       <div className={styles.navRow}>
         <NavBtn to="/admincars" text="ADMIN" />

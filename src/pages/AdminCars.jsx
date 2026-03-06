@@ -53,7 +53,6 @@ const PATH_LABELS_PL = {
   startAt: "Start",
   endAt: "Koniec",
   type: "Typ",
-  status: "Status",
 };
 
 const KEY_LABELS_PL = {
@@ -883,9 +882,8 @@ export default function AdminCars() {
 
   return (
     <div className={styles.wrapper}>
-      <h2 className={styles.pageTitle}>Admin Panel</h2>
       <Navbar />
-
+      <h2 className={styles.pageTitle}>Admin Panel</h2>
       {msg && (
         <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
           {msg.text}
@@ -940,9 +938,6 @@ export default function AdminCars() {
                       <div className={styles.actionsRow}>
                         <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
                           Zapisz USER (wszystkie pola)
-                        </button>
-                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnSecondary}>
-                          Szybka zmiana PIN
                         </button>
                       </div>
 
@@ -1034,7 +1029,7 @@ export default function AdminCars() {
                     <>
                       <div className={styles.actionsRow}>
                         <button onClick={() => saveWhole("cars")} disabled={busy} className={styles.btnPrimary}>
-                          Zapisz CAR (wszystkie pola)
+                          ZAPISZ ZMIANY (wszystkie pola)
                         </button>
                       </div>
 

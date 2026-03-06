@@ -1,112 +1,311 @@
-.wrapper {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 18px;
+/* =============================================
+   AddNewCar.module.css — Dodawanie nowego auta
+   Jasny motyw, spójny z panelem administracyjnym
+   ============================================= */
+
+/* === ZMIENNE === */
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-hover: #f8fafc;
+  --c-border: #e2e8f0;
+  --c-border-light: #edf2f7;
+
+  --c-primary: #3b6ef8;
+  --c-primary-hover: #2555e0;
+  --c-primary-light: #ebf0fe;
+
+  --c-secondary: #64748b;
+  --c-secondary-hover: #475569;
+
+  --c-text: #1e293b;
+  --c-text-muted: #94a3b8;
+  --c-text-meta: #64748b;
+
+  --c-ok: #16a34a;
+  --c-ok-bg: #f0fdf4;
+  --c-ok-border: #bbf7d0;
+
+  --c-error: #dc2626;
+  --c-error-bg: #fef2f2;
+  --c-error-border: #fecaca;
+
+  --c-input-bg: #ffffff;
+  --c-input-border: #cbd5e1;
+  --c-input-focus: #3b6ef8;
+  --c-input-disabled-bg: #f1f5f9;
+
+  --c-checkbox-bg: #ffffff;
+  --c-checkbox-border: #cbd5e1;
+  --c-checkbox-checked: #3b6ef8;
+
+  --c-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --c-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
+/* === WRAPPER === */
+/* TAKA SAMA SZEROKOŚĆ STRONY jak w AdminCars.module.css */
+.wrapper {
+  min-height: 100vh;
+  background: var(--c-bg);
+  padding: 24px 32px 64px;
+  color: var(--c-text);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 16px 16px 48px;
+  }
+}
+
+/* === NAGŁÓWEK STRONY === */
 .title {
-  margin-bottom: 10px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin-top: 0;
-  opacity: 0.8;
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+  color: var(--c-text-meta);
+  line-height: 1.5;
 }
 
+.subtitle code {
+  font-size: 0.82rem;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* === BOX / SEKCJA === */
 .box {
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 14px;
-  background: #fff;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--c-shadow-sm);
 }
 
 .sectionTitle {
-  margin-top: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-meta);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-border-light);
 }
 
+/* === WIADOMOŚCI === */
+.message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+  border: 1px solid;
+}
+
+.messageOk {
+  color: var(--c-ok);
+  background: var(--c-ok-bg);
+  border-color: var(--c-ok-border);
+}
+
+.messageOk::before {
+  content: "✓";
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.messageError {
+  color: var(--c-error);
+  background: var(--c-error-bg);
+  border-color: var(--c-error-border);
+}
+
+.messageError::before {
+  content: "✕";
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* === GRID FORMULARZA === */
 .grid2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .fullWidth {
   grid-column: 1 / -1;
 }
 
+/* === LABEL === */
 .label {
-  display: block;
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 6px;
+  display: inline-block;
+  margin-bottom: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.35;
 }
 
+/* === INPUT / SELECT === */
 .input {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+  background: var(--c-input-bg);
+  border: 1.5px solid var(--c-input-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--c-text);
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   box-sizing: border-box;
-  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input:hover {
+  border-color: #b6c2d2;
 }
 
 .input:focus {
-  border-color: #111;
+  border-color: var(--c-input-focus);
+  box-shadow: 0 0 0 3px rgba(59, 110, 248, 0.12);
 }
 
+.input:disabled {
+  background: var(--c-input-disabled-bg);
+  color: var(--c-text-muted);
+  cursor: not-allowed;
+  border-color: var(--c-border-light);
+}
+
+.input::placeholder {
+  color: var(--c-text-muted);
+}
+
+/* select */
+select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 34px;
+}
+
+/* date input */
+input[type="date"].input {
+  min-height: 40px;
+}
+
+/* number input */
+input[type="number"].input::-webkit-outer-spin-button,
+input[type="number"].input::-webkit-inner-spin-button {
+  margin: 0;
+}
+
+/* === CHECKBOXY === */
 .checkboxRow {
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
   align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.checkboxRow:hover {
+  background: var(--c-surface-hover);
+  border-color: #b6c2d2;
+}
+
+.checkboxRow input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--c-checkbox-checked);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .checkboxText {
-  opacity: 0.9;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1;
 }
 
-.message {
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 14px;
-  border: 1px solid;
-}
-
-.messageOk {
-  border-color: #86efac;
-  background: #f0fdf4;
-}
-
-.messageError {
-  border-color: #fca5a5;
-  background: #fef2f2;
-}
-
+/* === SUBMIT BUTTON === */
 .submitButton {
-  padding: 12px 16px;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #111;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 22px;
+  background: var(--c-primary);
   color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  font-weight: 600;
   cursor: pointer;
-  width: 100%;
-  font-weight: 700;
-  transition: 0.2s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(59, 110, 248, 0.25);
 }
 
 .submitButton:hover:not(:disabled) {
-  opacity: 0.92;
+  background: var(--c-primary-hover);
+  box-shadow: 0 3px 10px rgba(59, 110, 248, 0.35);
+  transform: translateY(-1px);
 }
 
+.submitButton:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.submitButton:disabled,
 .submitButtonDisabled {
-  background: #eee;
-  color: #111;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 1px 4px rgba(59, 110, 248, 0.12);
 }
 
-@media (max-width: 768px) {
-  .grid2 {
-    grid-template-columns: 1fr;
-  }
+/* === DROBNE POPRAWKI UKŁADU FORM === */
+form {
+  display: block;
+}
+
+form .box:last-of-type {
+  margin-bottom: 24px;
 }

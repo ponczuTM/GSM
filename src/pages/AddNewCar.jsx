@@ -183,9 +183,6 @@ export default function AddNewCar() {
     <div className={styles.wrapper}>
       <Navbar/>
       <h2 className={styles.title}>Dodaj nowy samochód</h2>
-      <p className={styles.subtitle}>
-        Zapis do Firebase RTDB: <code>/cars</code>
-      </p>
 
       {msg && (
         <div
@@ -260,19 +257,6 @@ export default function AddNewCar() {
                 value={form.vin}
                 onChange={(e) => setField("vin", e.target.value)}
                 placeholder="np. VF3EXPERT123456789"
-                autoComplete="off"
-              />
-            </div>
-
-            <div>
-              <label className={styles.label}>
-                Numer wewnętrzny (opcjonalnie)
-              </label>
-              <input
-                className={styles.input}
-                value={form.internalNumber}
-                onChange={(e) => setField("internalNumber", e.target.value)}
-                placeholder="np. F-001"
                 autoComplete="off"
               />
             </div>
