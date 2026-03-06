@@ -201,14 +201,6 @@ export default function ShowAllReservations() {
             type: <strong>{safe(r.type)}</strong>
             <br />
             status: <strong>{safe(r.status)}</strong>
-            <br />
-            createdAt: {safe(r?.audit?.createdAt)}
-            <br />
-            createdBy: {safe(r?.audit?.createdBy)}
-            <br />
-            updatedAt: {safe(r?.audit?.updatedAt)}
-            <br />
-            updatedBy: {safe(r?.audit?.updatedBy)}
           </div>
         </td>
       </tr>
@@ -260,14 +252,6 @@ export default function ShowAllReservations() {
             type: <strong>{safe(r.type)}</strong>
             <br />
             status: <strong>{safe(r.status)}</strong>
-            <br />
-            createdAt: {safe(r?.audit?.createdAt)}
-            <br />
-            createdBy: {safe(r?.audit?.createdBy)}
-            <br />
-            updatedAt: {safe(r?.audit?.updatedAt)}
-            <br />
-            updatedBy: {safe(r?.audit?.updatedBy)}
           </div>
         </td>
       </tr>
@@ -284,7 +268,7 @@ export default function ShowAllReservations() {
       ) : (
         <>
           <div className={styles.box}>
-            <h3 className={styles.sectionTitle}>Aktualnie wypożyczone (NOW): {activeNow.length}</h3>
+            <h3 className={styles.sectionTitle}>Aktualnie wypożyczone: {activeNow.length}</h3>
             {activeNow.length === 0 ? (
               <div className={styles.emptyText}>Brak aktywnych wypożyczeń.</div>
             ) : (
@@ -308,7 +292,7 @@ export default function ShowAllReservations() {
           </div>
 
           <div className={styles.box}>
-            <h3 className={styles.sectionTitle}>Ubiegłe wypożyczenia (NOW): {pastNow.length}</h3>
+            <h3 className={styles.sectionTitle}>Ubiegłe wypożyczenia: {pastNow.length}</h3>
             {pastNow.length === 0 ? (
               <div className={styles.emptyText}>Brak historii wypożyczeń.</div>
             ) : (
@@ -332,7 +316,7 @@ export default function ShowAllReservations() {
           </div>
 
           <div className={styles.box}>
-            <h3 className={styles.sectionTitle}>Obecne rezerwacje (RESERVATION): {currentReservations.length}</h3>
+            <h3 className={styles.sectionTitle}>Obecne rezerwacje: {currentReservations.length}</h3>
             {currentReservations.length === 0 ? (
               <div className={styles.emptyText}>Brak obecnych rezerwacji.</div>
             ) : (
@@ -356,7 +340,7 @@ export default function ShowAllReservations() {
           </div>
 
           <div className={styles.box}>
-            <h3 className={styles.sectionTitle}>Przyszłe rezerwacje (RESERVATION): {futureReservations.length}</h3>
+            <h3 className={styles.sectionTitle}>Przyszłe rezerwacje: {futureReservations.length}</h3>
             {futureReservations.length === 0 ? (
               <div className={styles.emptyText}>Brak przyszłych rezerwacji.</div>
             ) : (
@@ -380,7 +364,7 @@ export default function ShowAllReservations() {
           </div>
 
           <div className={styles.box}>
-            <h3 className={styles.sectionTitle}>Przeszłe rezerwacje (RESERVATION): {pastReservations.length}</h3>
+            <h3 className={styles.sectionTitle}>Przeszłe rezerwacje: {pastReservations.length}</h3>
             {pastReservations.length === 0 ? (
               <div className={styles.emptyText}>Brak przeszłych rezerwacji.</div>
             ) : (

@@ -72,7 +72,7 @@ export default function ShowAllCars() {
   return (
     <div className={styles.wrapper}>
       <Navbar/>
-      <h2 className={styles.title}>Wszystkie samochody (testowo z RTDB)</h2>
+      <h2 className={styles.title}>Wszystkie samochody</h2>
 
       {loading ? (
         <div className={styles.infoBox}>Ładuję dane...</div>
@@ -122,7 +122,8 @@ export default function ShowAllCars() {
                     <td className={styles.td}>
                       {safe(c.make)} / {safe(c.model)}
                       <div className={styles.metaText}>
-                        VIN: {safe(c.vin)} {" · "} Wewn.: {safe(c.internalNumber)}
+                      {/* VIN: {safe(c.vin)} {" · "} Wewn.: {safe(c.internalNumber)} */}
+                      VIN: {safe(c.vin)} {" · "}
                       </div>
                     </td>
 

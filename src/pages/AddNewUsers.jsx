@@ -67,7 +67,7 @@ export default function AddNewUsers() {
     }
 
     if (!isValidPin(pin)) {
-      setMsg({ type: "error", text: "PIN ma mieć 4–8 cyfr (tylko cyfry)." });
+      setMsg({ type: "error", text: "PIN ma mieć 4 cyfry" });
       return;
     }
 
@@ -154,7 +154,7 @@ export default function AddNewUsers() {
           </div>
 
           <div className={styles.fieldSmallMargin}>
-            <label className={styles.label}>PIN (4–8 cyfr) *</label>
+            <label className={styles.label}>PIN (4 cyfry) *</label>
             <input
               className={styles.input}
               value={form.pin}

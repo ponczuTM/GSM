@@ -904,7 +904,7 @@ export default function AdminCars() {
                 Samochody ({cars.length})
               </button>
               <button onClick={() => setActiveTab("RENTALS")} className={tabClass(activeTab === "RENTALS")}>
-                Wypoyczenia ({rentals.length})
+                Wypożyczenia ({rentals.length})
               </button>
             </div>
           </div>
@@ -1202,12 +1202,12 @@ export default function AdminCars() {
 
                 <div>
                   {!selectedRentalId || !draftRental ? (
-                    <div className={styles.muted}>Wybierz rental z listy.</div>
+                    <div className={styles.muted}>Wybierz wypozyczenie/rezerwacje z listy.</div>
                   ) : (
                     <>
                       <div className={styles.actionsRow}>
                         <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
-                          Zapisz RENTAL (wszystkie pola)
+                          Zapisz Zmiany (wszystkie pola)
                         </button>
                       </div>
 

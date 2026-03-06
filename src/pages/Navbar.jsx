@@ -22,12 +22,12 @@ export default function Navbar() {
       <h3 className={styles.boxTitle}>ZARZĄDZANIE FLOTĄ EXON</h3>
 
       <div className={styles.navRow}>
-        <NavBtn to="/admincars" text="ADMIN" />
-        <NavBtn to="/addnewcar" text="AddNewCar" />
-        <NavBtn to="/addnewusers" text="AddNewUsers" />
-        <NavBtn to="/showallcars" text="ShowAllCars" />
-        <NavBtn to="/showallreservations" text="ShowAllReservations" />
-        <NavBtn to="/carreservation" text="CarReservation" />
+        <NavBtn to="/admincars" text="PANEL ADMINA" />
+        <NavBtn to="/addnewcar" text="Dodaj Samochód" />
+        <NavBtn to="/addnewusers" text="Dodaj Użytkownika" />
+        <NavBtn to="/showallcars" text="Pokaż Samochody" />
+        <NavBtn to="/showallreservations" text="Pokaż Rezerwacje/Wypożyczenia" />
+        <NavBtn to="/carreservation" text="Rezerwacja/Wypożyczenie Samochodu" />
       </div>
     </div>
   );

@@ -202,7 +202,7 @@ export default function AddNewCar() {
           <div className={styles.grid2}>
             <div>
               <label className={styles.label}>
-                Tablica rejestracyjna (unique) *
+                Tablica rejestracyjna *
               </label>
               <input
                 className={styles.input}
@@ -269,7 +269,7 @@ export default function AddNewCar() {
                 className={styles.input}
                 value={form.baseLocation}
                 onChange={(e) => setField("baseLocation", e.target.value)}
-                placeholder="np. Baza Katowice"
+                placeholder="np. Wrocław"
                 autoComplete="off"
               />
             </div>
