@@ -898,13 +898,13 @@ export default function AdminCars() {
             <h3 className={styles.boxTitle}>Dane</h3>
             <div className={styles.tabsRow}>
               <button onClick={() => setActiveTab("USERS")} className={tabClass(activeTab === "USERS")}>
-                Users ({users.length})
+                Uytkownicy ({users.length})
               </button>
               <button onClick={() => setActiveTab("CARS")} className={tabClass(activeTab === "CARS")}>
-                Cars ({cars.length})
+                Samochody ({cars.length})
               </button>
               <button onClick={() => setActiveTab("RENTALS")} className={tabClass(activeTab === "RENTALS")}>
-                Rentals ({rentals.length})
+                Wypoyczenia ({rentals.length})
               </button>
             </div>
           </div>
@@ -1051,7 +1051,7 @@ export default function AdminCars() {
 
           {activeTab === "RENTALS" && (
             <div className={styles.box}>
-              <h3 className={styles.boxTitle}>RENTALS — edycja każdego pola + filtrowanie i sortowanie</h3>
+              <h3 className={styles.boxTitle}>WYPOŻYCZENIA — edycja każdego pola + filtrowanie i sortowanie</h3>
 
               <div className={styles.box} style={{ marginBottom: 16 }}>
                 <h4 className={styles.boxTitle}>Filtry i sortowanie rentals</h4>
@@ -1154,7 +1154,7 @@ export default function AdminCars() {
 
               <div className={styles.gridRentals}>
                 <div className={styles.listCard}>
-                  <div className={styles.listHeader}>Lista rentals ({visibleRentals.length})</div>
+                  <div className={styles.listHeader}>Lista Wypożyczeń ({visibleRentals.length})</div>
                   <div className={styles.listBody}>
                     {visibleRentals.length === 0 ? (
                       <div className={styles.muted}>Brak wyników dla aktualnych filtrów.</div>
@@ -1209,11 +1209,6 @@ export default function AdminCars() {
                         <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
                           Zapisz RENTAL (wszystkie pola)
                         </button>
-                      </div>
-
-                      <div className={styles.smallNote}>
-                        W tym widoku <code>borrowedByUserId</code> i <code>returnedByUserId</code> wybierasz z listy
-                        użytkowników. <code>id</code> i <code>carId</code> są readonly.
                       </div>
 
                       <DynamicEditor

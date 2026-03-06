@@ -1049,7 +1049,7 @@ export default function CarReservation() {
               </div>
 
               <div className={styles.gridFullNote}>
-                Rezerwacja blokuje okno: nikt nie wypożyczy ani nie zarezerwuje w kolizji.
+                Uwaga! Pamiętaj e nikt inny nie wypożyczy wybranego auta w tym terminie.
               </div>
             </div>
           )}
