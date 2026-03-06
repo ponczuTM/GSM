@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import md5 from "blueimp-md5";
 import { database, ref, onValue, push, set, get, update } from "../FirebaseConfig";
 import styles from "./CarReservation.module.css";
-import Navbar from './Navbar';
+import Navbar from "./Navbar";
 
 /**
  * RENTALS model:
@@ -10,6 +10,9 @@ import Navbar from './Navbar';
  * - RESERVATION: { type:"RESERVATION", status:"ACTIVE", startAt: ISO, endAt: ISO } => blokuje okno
  *
  * Konflikt okien: [S, E) koliduje z [A, B) gdy S < B && E > A
+ *
+ * Dodatkowo:
+ * - description: string
  */
 
 const STATUS_ALLOWED = "AVAILABLE";
@@ -65,6 +68,29 @@ function normalizeName(name) {
   return (name || "").trim().replace(/\s+/g, " ");
 }
 
+function getReservationBucket(r, nowTs) {
+  const s = new Date(r?.startAt || "").getTime();
+  const e = new Date(r?.endAt || "").getTime();
+
+  if (Number.isNaN(s) || Number.isNaN(e)) return "UNKNOWN";
+  if (nowTs < s) return "FUTURE";
+  if (nowTs >= s && nowTs < e) return "CURRENT";
+  return "PAST";
+}
+
+function reservationBucketLabel(bucket) {
+  switch (bucket) {
+    case "CURRENT":
+      return "Obecne rezerwacje";
+    case "FUTURE":
+      return "Przyszłe rezerwacje";
+    case "PAST":
+      return "Przeszłe rezerwacje";
+    default:
+      return "Pozostałe rezerwacje";
+  }
+}
+
 export default function CarReservation() {
   const adminUserId = useMemo(
     () => localStorage.getItem("userId") || "usr_admin_001",
@@ -92,6 +118,12 @@ export default function CarReservation() {
 
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState(null);
+
+  const [returnDrafts, setReturnDrafts] = useState({});
+  const [openReturnFormId, setOpenReturnFormId] = useState(null);
+
+  const [descriptionDrafts, setDescriptionDrafts] = useState({});
+  const [savingDescriptionId, setSavingDescriptionId] = useState(null);
 
   useEffect(() => {
     const unsubUsers = onValue(
@@ -180,6 +212,26 @@ export default function CarReservation() {
     return map;
   }, [rentals]);
 
+  useEffect(() => {
+    if (!loggedUser) {
+      setDescriptionDrafts({});
+      setReturnDrafts({});
+      setOpenReturnFormId(null);
+      return;
+    }
+
+    const mine = rentals.filter((r) => r?.borrowedByUserId === loggedUser.id);
+    setDescriptionDrafts((prev) => {
+      const next = { ...prev };
+      mine.forEach((r) => {
+        if (next[r.id] === undefined) {
+          next[r.id] = r?.description ?? "";
+        }
+      });
+      return next;
+    });
+  }, [rentals, loggedUser]);
+
   function carIsOperationallyAllowed(car) {
     if (!car) return false;
     if (car.isArchived) return false;
@@ -239,20 +291,49 @@ export default function CarReservation() {
       .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
   }, [rentals, loggedUser]);
 
-  const myFutureReservations = useMemo(() => {
-    if (!loggedUser) return [];
+  const myReservationsGrouped = useMemo(() => {
+    if (!loggedUser) {
+      return {
+        current: [],
+        future: [],
+        past: [],
+        other: [],
+      };
+    }
+
     const now = Date.now();
-    return rentals
+    const mine = rentals
       .filter((r) => {
         if (!r) return false;
         if ((r.type || "").toUpperCase() !== "RESERVATION") return false;
-        if ((r.status || "").toUpperCase() !== "ACTIVE") return false;
-        if (r.borrowedByUserId !== loggedUser.id) return false;
-        if (!r.startAt) return false;
-        const rs = new Date(r.startAt).getTime();
-        return !Number.isNaN(rs) && rs > now;
+        return r.borrowedByUserId === loggedUser.id;
       })
-      .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
+      .sort((a, b) => {
+        const as = new Date(a.startAt || "").getTime();
+        const bs = new Date(b.startAt || "").getTime();
+        return as - bs;
+      });
+
+    const grouped = {
+      current: [],
+      future: [],
+      past: [],
+      other: [],
+    };
+
+    mine.forEach((r) => {
+      const bucket = getReservationBucket(r, now);
+      if (bucket === "CURRENT") grouped.current.push(r);
+      else if (bucket === "FUTURE") grouped.future.push(r);
+      else if (bucket === "PAST") grouped.past.push(r);
+      else grouped.other.push(r);
+    });
+
+    grouped.current.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+    grouped.future.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+    grouped.past.sort((a, b) => new Date(b.endAt).getTime() - new Date(a.endAt).getTime());
+
+    return grouped;
   }, [rentals, loggedUser]);
 
   async function handleLogin(e) {
@@ -320,6 +401,10 @@ export default function CarReservation() {
     setLoginMsg(null);
     setActionMsg(null);
     setMode("NOW");
+    setReturnDrafts({});
+    setOpenReturnFormId(null);
+    setDescriptionDrafts({});
+    setSavingDescriptionId(null);
   }
 
   async function createNowRental(car) {
@@ -392,6 +477,7 @@ export default function CarReservation() {
         borrowedByUserId: loggedUser.id,
         returnedAt: null,
         returnedByUserId: null,
+        description: "",
         notes: null,
         audit: {
           createdAt: nowIso2,
@@ -495,6 +581,7 @@ export default function CarReservation() {
         borrowedByUserId: loggedUser.id,
         returnedAt: null,
         returnedByUserId: null,
+        description: "",
         notes: null,
         audit: {
           createdAt: nowIso2,
@@ -516,6 +603,19 @@ export default function CarReservation() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function openReturnComment(rental) {
+    setOpenReturnFormId(rental.id);
+    setReturnDrafts((prev) => ({
+      ...prev,
+      [rental.id]: prev[rental.id] ?? (rental?.description ?? ""),
+    }));
+    setActionMsg(null);
+  }
+
+  function cancelReturnComment() {
+    setOpenReturnFormId(null);
   }
 
   async function returnCar(rental) {
@@ -552,11 +652,14 @@ export default function CarReservation() {
       }
 
       const nowIso = isoNow();
+      const description = (returnDrafts[rental.id] ?? "").trim();
+
       const patch = {
         status: "CLOSED",
         endAt: nowIso,
         returnedAt: nowIso,
         returnedByUserId: loggedUser.id,
+        description,
         "audit/updatedAt": nowIso,
         "audit/updatedBy": loggedUser.id,
       };
@@ -568,11 +671,63 @@ export default function CarReservation() {
         type: "ok",
         text: `Zwrócono auto: ${car?.plateNumber || rental.carId}`,
       });
+      setOpenReturnFormId(null);
+      setReturnDrafts((prev) => ({
+        ...prev,
+        [rental.id]: description,
+      }));
     } catch (err) {
       console.error(err);
       setActionMsg({ type: "error", text: "Błąd zwrotu (sprawdź konsolę)." });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function saveReservationDescription(rental) {
+    if (!loggedUser) return;
+    if (rental.borrowedByUserId !== loggedUser.id) {
+      setActionMsg({ type: "error", text: "Nie możesz edytować opisu nie swojej rezerwacji." });
+      return;
+    }
+    if ((rental.type || "").toUpperCase() !== "RESERVATION") {
+      setActionMsg({ type: "error", text: "Opis możesz edytować tylko dla rezerwacji." });
+      return;
+    }
+
+    const description = (descriptionDrafts[rental.id] ?? "").trim();
+
+    setSavingDescriptionId(rental.id);
+    setActionMsg(null);
+
+    try {
+      const snap = await get(ref(database, `rentals/${rental.id}`));
+      if (!snap.exists()) {
+        setActionMsg({ type: "error", text: "Nie znaleziono rezerwacji w bazie." });
+        setSavingDescriptionId(null);
+        return;
+      }
+
+      const fresh = snap.val();
+      if (!fresh || fresh.borrowedByUserId !== loggedUser.id) {
+        setActionMsg({ type: "error", text: "Nie możesz edytować tej rezerwacji." });
+        setSavingDescriptionId(null);
+        return;
+      }
+
+      const nowIso = isoNow();
+      await update(ref(database, `rentals/${rental.id}`), {
+        description,
+        "audit/updatedAt": nowIso,
+        "audit/updatedBy": loggedUser.id,
+      });
+
+      setActionMsg({ type: "ok", text: "Zapisano opis rezerwacji." });
+    } catch (err) {
+      console.error(err);
+      setActionMsg({ type: "error", text: "Błąd zapisu opisu rezerwacji." });
+    } finally {
+      setSavingDescriptionId(null);
     }
   }
 
@@ -589,6 +744,59 @@ export default function CarReservation() {
 
     return cars.filter((c) => carIsAvailableForReservation(c, sIso, eIso));
   }, [loggedUser, mode, cars, resStartLocal, resEndLocal, rentals]);
+
+  function renderReservationCard(r, bucket) {
+    const car = carsById.get(r.carId);
+    const isSaving = savingDescriptionId === r.id;
+    const statusLabel = (r.status || "").toUpperCase() || "—";
+
+    return (
+      <div key={r.id} className={styles.card}>
+        <div className={styles.cardTitle}>
+          {car?.plateNumber || r.carId} — {safe(car?.make)} {safe(car?.model)}
+        </div>
+
+        <div className={styles.cardMeta}>
+          Typ: REZERWACJA
+          <br />
+          Okres: {fmtPL(r.startAt)} → {fmtPL(r.endAt)}
+          <br />
+          Kategoria czasu: {reservationBucketLabel(bucket)}
+          <br />
+          Status rekordu: {statusLabel}
+        </div>
+
+        <div className={styles.cardMeta} style={{ marginTop: 10 }}>
+          <strong>Opis / komentarz</strong>
+        </div>
+
+        <textarea
+          className={styles.input}
+          value={descriptionDrafts[r.id] ?? ""}
+          onChange={(e) =>
+            setDescriptionDrafts((prev) => ({
+              ...prev,
+              [r.id]: e.target.value,
+            }))
+          }
+          placeholder="Dodaj komentarz do rezerwacji..."
+          disabled={busy || isSaving}
+          rows={4}
+          style={{ width: "100%", resize: "vertical", marginTop: 8 }}
+        />
+
+        <div className={styles.cardAction} style={{ marginTop: 10 }}>
+          <button
+            onClick={() => saveReservationDescription(r)}
+            disabled={busy || isSaving}
+            className={`${styles.btnPrimary} ${(busy || isSaving) ? styles.btnDisabled : ""}`}
+          >
+            {isSaving ? "..." : "Zapisz opis"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrapper}>
@@ -642,11 +850,7 @@ export default function CarReservation() {
               </div>
             </div>
 
-            {loginMsg && (
-              <div className={styles.loginMsg}>
-                {loginMsg.text}
-              </div>
-            )}
+            {loginMsg && <div className={styles.loginMsg}>{loginMsg.text}</div>}
           </form>
         ) : (
           <div className={styles.loggedRow}>
@@ -665,7 +869,7 @@ export default function CarReservation() {
 
       {loggedUser && (
         <div className={styles.box}>
-          <h3 className={styles.sectionTitle}>2) Moje aktualne wypożyczenia + przyszłe rezerwacje</h3>
+          <h3 className={styles.sectionTitle}>2) Moje aktualne wypożyczenia + wszystkie moje rezerwacje</h3>
 
           <div className={styles.twoCols}>
             <div className={styles.innerPanel}>
@@ -679,24 +883,66 @@ export default function CarReservation() {
                 <div className={styles.cardsList}>
                   {myActiveNowRentals.map((r) => {
                     const car = carsById.get(r.carId);
+                    const returnDesc = returnDrafts[r.id] ?? (r?.description ?? "");
+                    const isOpen = openReturnFormId === r.id;
+
                     return (
                       <div key={r.id} className={styles.card}>
                         <div className={styles.cardTitle}>
                           {car?.plateNumber || r.carId} — {safe(car?.make)} {safe(car?.model)}
                         </div>
+
                         <div className={styles.cardMeta}>
                           Start: {fmtPL(r.startAt)}
                         </div>
 
-                        <div className={styles.cardAction}>
-                          <button
-                            onClick={() => returnCar(r)}
-                            disabled={busy}
-                            className={`${styles.btnDanger} ${busy ? styles.btnDisabled : ""}`}
-                          >
-                            {busy ? "..." : "Zwróć auto"}
-                          </button>
-                        </div>
+                        {!isOpen ? (
+                          <div className={styles.cardAction}>
+                            <button
+                              onClick={() => openReturnComment(r)}
+                              disabled={busy}
+                              className={`${styles.btnDanger} ${busy ? styles.btnDisabled : ""}`}
+                            >
+                              {busy ? "..." : "Zwróć auto"}
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 12 }}>
+                            <label className={styles.label}>Opis / komentarz przy zwrocie</label>
+                            <textarea
+                              className={styles.input}
+                              rows={4}
+                              style={{ width: "100%", resize: "vertical" }}
+                              value={returnDesc}
+                              onChange={(e) =>
+                                setReturnDrafts((prev) => ({
+                                  ...prev,
+                                  [r.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Np. kolizja, uszkodzenie, uwagi, brak uwag..."
+                              disabled={busy}
+                            />
+
+                            <div className={styles.cardAction} style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                              <button
+                                onClick={() => returnCar(r)}
+                                disabled={busy}
+                                className={`${styles.btnDanger} ${busy ? styles.btnDisabled : ""}`}
+                              >
+                                {busy ? "..." : "Potwierdź zwrot"}
+                              </button>
+
+                              <button
+                                onClick={cancelReturnComment}
+                                disabled={busy}
+                                className={styles.btnGhost}
+                              >
+                                Anuluj
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -706,35 +952,63 @@ export default function CarReservation() {
 
             <div className={styles.innerPanel}>
               <div className={styles.panelTitle}>
-                Moje przyszłe rezerwacje: {myFutureReservations.length}
+                Wszystkie moje rezerwacje:{" "}
+                {myReservationsGrouped.current.length +
+                  myReservationsGrouped.future.length +
+                  myReservationsGrouped.past.length +
+                  myReservationsGrouped.other.length}
               </div>
 
-              {myFutureReservations.length === 0 ? (
-                <div className={styles.muted}>Brak przyszłych rezerwacji.</div>
-              ) : (
-                <div className={styles.cardsList}>
-                  {myFutureReservations.map((r) => {
-                    const car = carsById.get(r.carId);
-                    return (
-                      <div key={r.id} className={styles.card}>
-                        <div className={styles.cardTitle}>
-                          {car?.plateNumber || r.carId} — {safe(car?.make)} {safe(car?.model)}
-                        </div>
-                        <div className={styles.cardMeta}>
-                          Od: {fmtPL(r.startAt)}
-                          <br />
-                          Do: {fmtPL(r.endAt)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className={styles.cardsList}>
+                {myReservationsGrouped.current.length > 0 && (
+                  <>
+                    <div className={styles.panelTitle}>
+                      Obecne rezerwacje: {myReservationsGrouped.current.length}
+                    </div>
+                    {myReservationsGrouped.current.map((r) => renderReservationCard(r, "CURRENT"))}
+                  </>
+                )}
+
+                {myReservationsGrouped.future.length > 0 && (
+                  <>
+                    <div className={styles.panelTitle} style={{ marginTop: 12 }}>
+                      Przyszłe rezerwacje: {myReservationsGrouped.future.length}
+                    </div>
+                    {myReservationsGrouped.future.map((r) => renderReservationCard(r, "FUTURE"))}
+                  </>
+                )}
+
+                {myReservationsGrouped.past.length > 0 && (
+                  <>
+                    <div className={styles.panelTitle} style={{ marginTop: 12 }}>
+                      Przeszłe rezerwacje: {myReservationsGrouped.past.length}
+                    </div>
+                    {myReservationsGrouped.past.map((r) => renderReservationCard(r, "PAST"))}
+                  </>
+                )}
+
+                {myReservationsGrouped.other.length > 0 && (
+                  <>
+                    <div className={styles.panelTitle} style={{ marginTop: 12 }}>
+                      Pozostałe / niepoprawne daty: {myReservationsGrouped.other.length}
+                    </div>
+                    {myReservationsGrouped.other.map((r) => renderReservationCard(r, "UNKNOWN"))}
+                  </>
+                )}
+
+                {myReservationsGrouped.current.length === 0 &&
+                  myReservationsGrouped.future.length === 0 &&
+                  myReservationsGrouped.past.length === 0 &&
+                  myReservationsGrouped.other.length === 0 && (
+                    <div className={styles.muted}>Brak rezerwacji.</div>
+                  )}
+              </div>
             </div>
           </div>
 
           <div className={styles.note}>
-            Zwrot działa tylko dla aktywnego NOW (endAt=null). Rezerwacje są tylko podglądowe w tym ekranie.
+            Zwrot aktywnego NOW wymaga teraz potwierdzenia i opcjonalnego opisu. Rezerwacje są widoczne jako obecne,
+            przyszłe i przeszłe, a opis można edytować bezpośrednio na karcie.
           </div>
         </div>
       )}

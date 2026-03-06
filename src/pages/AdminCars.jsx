@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import md5 from "blueimp-md5";
 import { database, ref, onValue, set } from "../FirebaseConfig";
 import styles from "./AdminCars.module.css";
-import Navbar from './Navbar';
+import Navbar from "./Navbar";
 
 /** =======================
  *  TŁUMACZENIA PÓL (PL)
@@ -52,7 +52,7 @@ const PATH_LABELS_PL = {
   returnedByUserId: "ID użytkownika zwracającego",
   startAt: "Start",
   endAt: "Koniec",
-  type: "Typ"
+  type: "Typ",
 };
 
 const KEY_LABELS_PL = {
@@ -147,6 +147,10 @@ function randomSalt(len = 10) {
   return `slt_${out}`;
 }
 
+function isValidPin(pin) {
+  return /^[0-9]{4,8}$/.test(String(pin || "").trim());
+}
+
 function typeOfValue(v) {
   if (v === null) return "null";
   if (Array.isArray(v)) return "array";
@@ -183,30 +187,6 @@ function setAtPath(root, path, value) {
     cur = cur[k];
   }
   cur[parts[parts.length - 1]] = value;
-  return copy;
-}
-
-function deleteAtPath(root, path) {
-  const copy = deepClone(root);
-  if (!path) return copy;
-  const parts = path.split(".");
-  let cur = copy;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const k = parts[i];
-    if (cur == null) return copy;
-    cur = cur[k];
-  }
-  const last = parts[parts.length - 1];
-
-  if (Array.isArray(cur)) {
-    const idx = Number(last);
-    if (!Number.isNaN(idx)) cur.splice(idx, 1);
-    return copy;
-  }
-
-  if (isPlainObject(cur)) {
-    delete cur[last];
-  }
   return copy;
 }
 
@@ -266,19 +246,13 @@ function isReadOnlyPath(entityType, path) {
   // własne id zawsze readonly
   if (isIdPath(path)) return true;
 
-  // users -> pin.salt readonly
-  if (entityType === "users" && path === "pin.salt") return true;
+  // users -> pin.salt i pin.hashMd5 readonly
+  if (entityType === "users" && (path === "pin.salt" || path === "pin.hashMd5")) return true;
 
   // rentals -> carId readonly
   if (entityType === "rentals" && path === "carId") return true;
 
   return false;
-}
-
-function canDeletePath(entityType, path) {
-  if (!path) return false;
-  if (isReadOnlyPath(entityType, path)) return false;
-  return true;
 }
 
 /** === Dynamic Editor (rekurencyjny) === **/
@@ -290,7 +264,6 @@ function DynamicEditor({
   entityType,
   userOptions = [],
   onRootChange,
-  onDeletePath,
 }) {
   // nic z audytu i nic z created*/updated* nie renderujemy
   if (isHiddenPath(currentPath)) return null;
@@ -304,7 +277,6 @@ function DynamicEditor({
   const isReadOnly = isReadOnlyPath(entityType, currentPath);
   const isUserRef = isUserReferencePath(entityType, currentPath);
   const effectiveDisabled = disabled || isReadOnly;
-  const canDelete = canDeletePath(entityType, currentPath);
 
   // PRIMITIVES
   if (t === "string" || t === "number" || t === "boolean" || t === "null" || t === "undefined") {
@@ -333,7 +305,6 @@ function DynamicEditor({
               <option value="">— wybierz użytkownika —</option>
               {userOptions.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {/* {u.id} — {safe(u.name)} */}
                   {safe(u.name)} | id: ({u.id})
                 </option>
               ))}
@@ -373,28 +344,6 @@ function DynamicEditor({
               }}
             />
           )}
-
-          {canDelete && (
-            <div className={styles.fieldBtnRow}>
-              <button
-                className={styles.btnGhost}
-                disabled={disabled}
-                onClick={() => onRootChange(setAtPath(rootValue, currentPath, null))}
-                title="Ustaw null"
-              >
-                null
-              </button>
-
-              <button
-                className={styles.btnDanger}
-                disabled={disabled}
-                onClick={() => onDeletePath(currentPath)}
-                title="Usuń to pole / element"
-              >
-                Usuń
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -409,19 +358,6 @@ function DynamicEditor({
         <div className={styles.nodeHeader}>
           <div className={styles.nodeTitle}>
             {showLabel} <span className={styles.nodeMeta}>(tablica · {arr.length})</span>
-          </div>
-
-          <div className={styles.nodeActions}>
-            {canDelete && (
-              <button
-                className={styles.btnDanger}
-                disabled={disabled}
-                onClick={() => onDeletePath(currentPath)}
-                title="Usuń tablicę"
-              >
-                Usuń
-              </button>
-            )}
           </div>
         </div>
 
@@ -439,7 +375,6 @@ function DynamicEditor({
                   entityType={entityType}
                   userOptions={userOptions}
                   onRootChange={onRootChange}
-                  onDeletePath={onDeletePath}
                 />
               </div>
             ))
@@ -462,7 +397,6 @@ function DynamicEditor({
       entityType={entityType}
       userOptions={userOptions}
       onRootChange={onRootChange}
-      onDeletePath={onDeletePath}
     />
   );
 }
@@ -476,7 +410,6 @@ function ObjectNodeEditor({
   entityType,
   userOptions,
   onRootChange,
-  onDeletePath,
 }) {
   const entries = Object.entries(obj || {})
     .filter(([k]) => !isHiddenPath(pathJoin(currentPath, k)))
@@ -484,26 +417,11 @@ function ObjectNodeEditor({
 
   if (entries.length === 0) return null;
 
-  const canDelete = canDeletePath(entityType, currentPath);
-
   return (
     <div className={styles.nodeBox}>
       <div className={styles.nodeHeader}>
         <div className={styles.nodeTitle}>
-          {label} <span className={styles.nodeMeta}>(obiekt · {entries.length})</span>
-        </div>
-
-        <div className={styles.nodeActions}>
-          {canDelete && (
-            <button
-              className={styles.btnDanger}
-              disabled={disabled}
-              onClick={() => onDeletePath(currentPath)}
-              title="Usuń obiekt"
-            >
-              Usuń
-            </button>
-          )}
+          {label}
         </div>
       </div>
 
@@ -518,7 +436,6 @@ function ObjectNodeEditor({
               entityType={entityType}
               userOptions={userOptions}
               onRootChange={onRootChange}
-              onDeletePath={onDeletePath}
             />
           </div>
         ))}
@@ -545,6 +462,9 @@ export default function AdminCars() {
   const [draftUser, setDraftUser] = useState(null);
   const [draftCar, setDraftCar] = useState(null);
   const [draftRental, setDraftRental] = useState(null);
+
+  // NOWE: jawny PIN wpisywany przez admina tylko w UI
+  const [userPlainPin, setUserPlainPin] = useState("");
 
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -634,6 +554,7 @@ export default function AdminCars() {
     if (!u) return;
 
     setDraftUser(deepClone(u));
+    setUserPlainPin("");
     setMsg(null);
   }
 
@@ -643,6 +564,7 @@ export default function AdminCars() {
     setSelectedRentalId("");
     setDraftUser(null);
     setDraftRental(null);
+    setUserPlainPin("");
 
     const c = carsById.get(id);
     if (!c) return;
@@ -657,6 +579,7 @@ export default function AdminCars() {
     setSelectedCarId("");
     setDraftUser(null);
     setDraftCar(null);
+    setUserPlainPin("");
 
     const r = rentalsById.get(id);
     if (!r) return;
@@ -702,15 +625,43 @@ export default function AdminCars() {
     try {
       const nowIso = new Date().toISOString();
       const next = deepClone(obj);
+
+      if (kind === "users") {
+        const trimmedPin = String(userPlainPin || "").trim();
+
+        if (trimmedPin) {
+          if (!isValidPin(trimmedPin)) {
+            setMessage("error", "Nowy PIN musi mieć 4–8 cyfr (tylko cyfry).");
+            setBusy(false);
+            return;
+          }
+
+          const salt = randomSalt(10);
+          const hashMd5 = md5(`${salt}${trimmedPin}`);
+
+          next.pin = next.pin || {};
+          next.pin.salt = salt;
+          next.pin.hashMd5 = hashMd5;
+        }
+      }
+
       next.audit = next.audit || {};
       next.audit.updatedAt = nowIso;
       next.audit.updatedBy = adminUserId;
 
       await set(ref(database, `${kind}/${id}`), next);
 
-      setMessage("ok", `Zapisano ${kind.toUpperCase()} (wszystkie pola).`);
+      setMessage(
+        "ok",
+        kind === "users" && String(userPlainPin || "").trim()
+          ? "Zapisano USER. PIN został przeliczony na hash + salt."
+          : `Zapisano ${kind.toUpperCase()} (wszystkie pola).`
+      );
 
-      if (kind === "users") setDraftUser(next);
+      if (kind === "users") {
+        setDraftUser(next);
+        setUserPlainPin("");
+      }
       if (kind === "cars") setDraftCar(next);
       if (kind === "rentals") setDraftRental(next);
     } catch (e) {
@@ -721,42 +672,32 @@ export default function AdminCars() {
     }
   }
 
-  async function resetPinQuick() {
+  function fillQuickPin(pinValue) {
+    const pin = String(pinValue || "").trim();
+
+    if (!isValidPin(pin)) {
+      setMessage("error", "PIN musi mieć 4–8 cyfr.");
+      return;
+    }
+
+    setUserPlainPin(pin);
+    setMessage("ok", "Nowy PIN ustawiony w formularzu. Kliknij „Zapisz USER”, żeby wysłać do DB.");
+  }
+
+  function resetPinQuick() {
     if (!selectedUserId || !draftUser) return;
 
     const plainPin = prompt("Podaj nowy PIN (4–8 cyfr):");
     if (plainPin === null) return;
 
-    const pin = String(plainPin).trim();
-    if (!/^[0-9]{4,8}$/.test(pin)) {
-      setMessage("error", "PIN musi mieć 4–8 cyfr.");
-      return;
-    }
-
-    const salt = randomSalt(10);
-    const hashMd5 = md5(`${salt}${pin}`);
-
-    const next = deepClone(draftUser);
-    next.pin = next.pin || {};
-    next.pin.salt = salt;
-    next.pin.hashMd5 = hashMd5;
-
-    setDraftUser(next);
-    setMessage("ok", "Ustawiono nowy PIN (hash+salt) w edytorze. Kliknij Zapisz, żeby wysłać do DB.");
-  }
-
-  function deletePathInDraft(draft, setDraftFn, path, entityType) {
-    if (!canDeletePath(entityType, path)) return;
-    const next = deleteAtPath(draft, path);
-    setDraftFn(next);
+    fillQuickPin(plainPin);
   }
 
   return (
     <div className={styles.wrapper}>
       <h2 className={styles.pageTitle}>Admin Panel</h2>
-      <Navbar/>
+      <Navbar />
 
-      {/* MESSAGE */}
       {msg && (
         <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
           {msg.text}
@@ -767,7 +708,6 @@ export default function AdminCars() {
         <div className={styles.box}>Ładuję dane...</div>
       ) : (
         <>
-          {/* TABS */}
           <div className={styles.box}>
             <h3 className={styles.boxTitle}>Dane</h3>
             <div className={styles.tabsRow}>
@@ -783,13 +723,11 @@ export default function AdminCars() {
             </div>
           </div>
 
-          {/* USERS */}
           {activeTab === "USERS" && (
             <div className={styles.box}>
               <h3 className={styles.boxTitle}>USERS — edycja każdego pola</h3>
 
               <div className={styles.gridUsers}>
-                {/* list */}
                 <div className={styles.listCard}>
                   <div className={styles.listHeader}>Lista users</div>
                   <div className={styles.listBody}>
@@ -801,19 +739,13 @@ export default function AdminCars() {
                       >
                         <div className={styles.itemTitle}>{safe(u.name)}</div>
                         <div className={styles.itemMeta}>
-                          id: {u.id} · rola: {safe(u.role)} · aktywny: {String(!!u.isActive)}
-                        </div>
-                        <div className={styles.itemMeta}>
-                          pin.hashMd5: <code>{safe(u?.pin?.hashMd5)}</code>
-                          <br />
-                          pin.salt: <code>{safe(u?.pin?.salt)}</code>
+                          · aktywny: {String(!!u.isActive)} ·
                         </div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* editor */}
                 <div>
                   {!selectedUserId || !draftUser ? (
                     <div className={styles.muted}>Wybierz użytkownika z listy.</div>
@@ -823,15 +755,43 @@ export default function AdminCars() {
                         <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
                           Zapisz USER (wszystkie pola)
                         </button>
-
-                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnDanger}>
-                          Reset PIN (szybko)
-                        </button>
                       </div>
 
-                      <div className={styles.smallNote}>
-                        Możesz edytować ręcznie <code>pin.hashMd5</code>, ale <code>pin.salt</code> jest readonly.
-                        Reset PIN ustawia oba pola automatycznie.
+                      <div className={styles.box} style={{ marginTop: 12 }}>
+                        <h4 className={styles.boxTitle}>Zmiana PIN użytkownika</h4>
+
+                        <div className={styles.fieldRow}>
+                          <div className={styles.fieldLabel}>
+                            <span>Aktualny hash PIN (MD5)</span>
+                            <span className={styles.fieldMeta}>readonly</span>
+                          </div>
+                          <div className={styles.fieldControl}>
+                            <input
+                              className={styles.input}
+                              value={draftUser?.pin?.hashMd5 || ""}
+                              disabled
+                              readOnly
+                            />
+                          </div>
+                        </div>
+
+                        <div className={styles.fieldRow}>
+                          <div className={styles.fieldLabel}>
+                            <span>Nowy PIN (4 cyfry)</span>
+                          </div>
+                          <div className={styles.fieldControl}>
+                            <input
+                              className={styles.input}
+                              type="password"
+                              value={userPlainPin}
+                              onChange={(e) => setUserPlainPin(e.target.value)}
+                              placeholder="np. 1234"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              disabled={busy}
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <DynamicEditor
@@ -842,7 +802,6 @@ export default function AdminCars() {
                         entityType="users"
                         userOptions={userOptions}
                         onRootChange={setDraftUser}
-                        onDeletePath={(p) => deletePathInDraft(draftUser, setDraftUser, p, "users")}
                       />
                     </>
                   )}
@@ -851,13 +810,11 @@ export default function AdminCars() {
             </div>
           )}
 
-          {/* CARS */}
           {activeTab === "CARS" && (
             <div className={styles.box}>
               <h3 className={styles.boxTitle}>CARS — edycja każdego pola</h3>
 
               <div className={styles.gridCars}>
-                {/* list */}
                 <div className={styles.listCard}>
                   <div className={styles.listHeader}>Lista cars</div>
                   <div className={styles.listBody}>
@@ -881,7 +838,6 @@ export default function AdminCars() {
                   </div>
                 </div>
 
-                {/* editor */}
                 <div>
                   {!selectedCarId || !draftCar ? (
                     <div className={styles.muted}>Wybierz auto z listy.</div>
@@ -901,7 +857,6 @@ export default function AdminCars() {
                         entityType="cars"
                         userOptions={userOptions}
                         onRootChange={setDraftCar}
-                        onDeletePath={(p) => deletePathInDraft(draftCar, setDraftCar, p, "cars")}
                       />
                     </>
                   )}
@@ -910,13 +865,11 @@ export default function AdminCars() {
             </div>
           )}
 
-          {/* RENTALS */}
           {activeTab === "RENTALS" && (
             <div className={styles.box}>
               <h3 className={styles.boxTitle}>RENTALS — edycja każdego pola</h3>
 
               <div className={styles.gridRentals}>
-                {/* list */}
                 <div className={styles.listCard}>
                   <div className={styles.listHeader}>Lista rentals</div>
                   <div className={styles.listBody}>
@@ -939,7 +892,7 @@ export default function AdminCars() {
                             [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)}
                           </div>
                           <div className={styles.itemMeta}>
-                            rentalId: {r.id} · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · end:{" "}
+                            · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · koniec:{" "}
                             {fmtPL(r.endAt)}
                           </div>
                           <div className={styles.itemMeta}>
@@ -952,7 +905,6 @@ export default function AdminCars() {
                   </div>
                 </div>
 
-                {/* editor */}
                 <div>
                   {!selectedRentalId || !draftRental ? (
                     <div className={styles.muted}>Wybierz rental z listy.</div>
@@ -977,7 +929,6 @@ export default function AdminCars() {
                         entityType="rentals"
                         userOptions={userOptions}
                         onRootChange={setDraftRental}
-                        onDeletePath={(p) => deletePathInDraft(draftRental, setDraftRental, p, "rentals")}
                       />
                     </>
                   )}
