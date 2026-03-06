@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import md5 from "blueimp-md5";
 import { database, ref, onValue, push, set, get, update } from "../FirebaseConfig";
+import styles from "./CarReservation.module.css";
+import Navbar from './Navbar';
 
 /**
  * RENTALS model:
@@ -19,7 +21,7 @@ function isoNow() {
 // DateTimeLocal "YYYY-MM-DDTHH:mm" -> ISO
 function dtLocalToIsoOrNull(v) {
   if (!v) return null;
-  const d = new Date(v); // lokalny czas
+  const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
@@ -51,7 +53,6 @@ function fmtPL(iso) {
 }
 
 function overlaps(startA, endA, startB, endB) {
-  // [startA, endA) vs [startB, endB)
   return startA < endB && endA > startB;
 }
 
@@ -65,25 +66,21 @@ function normalizeName(name) {
 }
 
 export default function CarReservation() {
-  // adminId do audytu (w realu: z auth)
   const adminUserId = useMemo(
     () => localStorage.getItem("userId") || "usr_admin_001",
     []
   );
 
-  // Data
   const [users, setUsers] = useState([]);
   const [cars, setCars] = useState([]);
   const [rentals, setRentals] = useState([]);
 
-  // Login
   const [selectedUserId, setSelectedUserId] = useState("");
   const [pinInput, setPinInput] = useState("");
   const [loggedUser, setLoggedUser] = useState(null);
   const [loginMsg, setLoginMsg] = useState(null);
 
-  // Mode
-  const [mode, setMode] = useState("NOW"); // "NOW" | "RESERVATION"
+  const [mode, setMode] = useState("NOW");
   const [resStartLocal, setResStartLocal] = useState(() => {
     const d = new Date(Date.now() + 60 * 60 * 1000);
     return isoToDtLocal(d.toISOString());
@@ -96,7 +93,6 @@ export default function CarReservation() {
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState(null);
 
-  // ===== realtime loads =====
   useEffect(() => {
     const unsubUsers = onValue(
       ref(database, "users"),
@@ -144,7 +140,6 @@ export default function CarReservation() {
     };
   }, []);
 
-  // ===== helper lookups =====
   const carsById = useMemo(() => {
     const m = new Map();
     cars.forEach((c) => c?.id && m.set(c.id, c));
@@ -231,7 +226,6 @@ export default function CarReservation() {
     return true;
   }
 
-  // ===== user's own stuff (after login) =====
   const myActiveNowRentals = useMemo(() => {
     if (!loggedUser) return [];
     return rentals
@@ -261,7 +255,6 @@ export default function CarReservation() {
       .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
   }, [rentals, loggedUser]);
 
-  // ===== login =====
   async function handleLogin(e) {
     e.preventDefault();
     setLoginMsg(null);
@@ -329,7 +322,6 @@ export default function CarReservation() {
     setMode("NOW");
   }
 
-  // ===== actions =====
   async function createNowRental(car) {
     if (!loggedUser) return;
 
@@ -393,27 +385,20 @@ export default function CarReservation() {
       const payload = {
         id,
         carId: car.id,
-
         type: "NOW",
         status: "ACTIVE",
-
         startAt: nowIso2,
         endAt: null,
-
         borrowedByUserId: loggedUser.id,
-
         returnedAt: null,
         returnedByUserId: null,
-
         notes: null,
-
         audit: {
           createdAt: nowIso2,
           createdBy: adminUserId,
           updatedAt: nowIso2,
           updatedBy: adminUserId,
         },
-
         adminCorrections: [],
       };
 
@@ -503,27 +488,20 @@ export default function CarReservation() {
       const payload = {
         id,
         carId: car.id,
-
         type: "RESERVATION",
         status: "ACTIVE",
-
         startAt: startIso,
         endAt: endIso,
-
         borrowedByUserId: loggedUser.id,
-
         returnedAt: null,
         returnedByUserId: null,
-
         notes: null,
-
         audit: {
           createdAt: nowIso2,
           createdBy: adminUserId,
           updatedAt: nowIso2,
           updatedBy: adminUserId,
         },
-
         adminCorrections: [],
       };
 
@@ -543,7 +521,6 @@ export default function CarReservation() {
   async function returnCar(rental) {
     if (!loggedUser) return;
 
-    // twarda zasada: user może zwrócić tylko swój aktywny NOW
     if (rental.borrowedByUserId !== loggedUser.id) {
       setActionMsg({ type: "error", text: "Nie możesz zwrócić auta, którego nie wypożyczyłeś." });
       return;
@@ -561,7 +538,6 @@ export default function CarReservation() {
     setActionMsg(null);
 
     try {
-      // re-check świeżo: rental nadal aktywny
       const snap = await get(ref(database, `rentals/${rental.id}`));
       if (!snap.exists()) {
         setActionMsg({ type: "error", text: "Nie znaleziono wypożyczenia w bazie." });
@@ -582,7 +558,7 @@ export default function CarReservation() {
         returnedAt: nowIso,
         returnedByUserId: loggedUser.id,
         "audit/updatedAt": nowIso,
-        "audit/updatedBy": loggedUser.id, // tu już user wykonuje akcję
+        "audit/updatedBy": loggedUser.id,
       };
 
       await update(ref(database, `rentals/${rental.id}`), patch);
@@ -600,7 +576,6 @@ export default function CarReservation() {
     }
   }
 
-  // ===== list of available cars =====
   const availableCars = useMemo(() => {
     if (!loggedUser) return [];
 
@@ -615,39 +590,21 @@ export default function CarReservation() {
     return cars.filter((c) => carIsAvailableForReservation(c, sIso, eIso));
   }, [loggedUser, mode, cars, resStartLocal, resEndLocal, rentals]);
 
-  // ===== UI styles =====
-  const box = {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 16,
-    background: "#fff",
-    marginBottom: 14,
-  };
-
-  const label = { display: "block", fontSize: 12, opacity: 0.8, marginBottom: 6 };
-  const input = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #ccc",
-    outline: "none",
-  };
-
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 18 }}>
-      <h2 style={{ marginBottom: 10 }}>Wypożyczenie / Rezerwacja + moje auta</h2>
+    <div className={styles.wrapper}>
+      {/* <Navbar/> */}
+      <h2 className={styles.title}>Wypożyczenie / Rezerwacja + moje auta</h2>
 
-      {/* LOGIN */}
-      <div style={box}>
-        <h3 style={{ marginTop: 0 }}>1) Wybór użytkownika + PIN</h3>
+      <div className={styles.box}>
+        <h3 className={styles.sectionTitle}>1) Wybór użytkownika + PIN</h3>
 
         {!loggedUser ? (
           <form onSubmit={handleLogin}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12 }}>
+            <div className={styles.loginGrid}>
               <div>
-                <label style={label}>Użytkownik</label>
+                <label className={styles.label}>Użytkownik</label>
                 <select
-                  style={input}
+                  className={styles.input}
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
                   disabled={busy}
@@ -662,9 +619,9 @@ export default function CarReservation() {
               </div>
 
               <div>
-                <label style={label}>PIN</label>
+                <label className={styles.label}>PIN</label>
                 <input
-                  style={input}
+                  className={styles.input}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
                   placeholder="4–8 cyfr"
@@ -674,72 +631,68 @@ export default function CarReservation() {
                 />
               </div>
 
-              <div style={{ display: "flex", alignItems: "end" }}>
-                <button type="submit" disabled={busy} style={btnPrimary(busy)}>
+              <div className={styles.loginButtonWrap}>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className={`${styles.btnPrimary} ${busy ? styles.btnDisabled : ""}`}
+                >
                   {busy ? "..." : "Zaloguj"}
                 </button>
               </div>
             </div>
 
             {loginMsg && (
-              <div style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid #ddd" }}>
+              <div className={styles.loginMsg}>
                 {loginMsg.text}
               </div>
             )}
           </form>
         ) : (
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+          <div className={styles.loggedRow}>
             <div>
-              <div style={{ fontWeight: 900 }}>Zalogowano: {loggedUser.name}</div>
-              <div style={{ opacity: 0.7, fontSize: 12 }}>
+              <div className={styles.loggedTitle}>Zalogowano: {loggedUser.name}</div>
+              <div className={styles.loggedMeta}>
                 userId: <code>{loggedUser.id}</code>
               </div>
             </div>
-            <button onClick={handleLogout} style={btnGhost}>
+            <button onClick={handleLogout} className={styles.btnGhost}>
               Wyloguj
             </button>
           </div>
         )}
       </div>
 
-      {/* MOJE - active rentals / future reservations */}
       {loggedUser && (
-        <div style={box}>
-          <h3 style={{ marginTop: 0 }}>2) Moje aktualne wypożyczenia + przyszłe rezerwacje</h3>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>2) Moje aktualne wypożyczenia + przyszłe rezerwacje</h3>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {/* active NOW */}
-            <div style={{ border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>Aktualnie wypożyczone (TERAZ): {myActiveNowRentals.length}</div>
+          <div className={styles.twoCols}>
+            <div className={styles.innerPanel}>
+              <div className={styles.panelTitle}>
+                Aktualnie wypożyczone (TERAZ): {myActiveNowRentals.length}
+              </div>
 
               {myActiveNowRentals.length === 0 ? (
-                <div style={{ opacity: 0.75 }}>Brak aktywnych wypożyczeń.</div>
+                <div className={styles.muted}>Brak aktywnych wypożyczeń.</div>
               ) : (
-                <div style={{ display: "grid", gap: 10 }}>
+                <div className={styles.cardsList}>
                   {myActiveNowRentals.map((r) => {
                     const car = carsById.get(r.carId);
                     return (
-                      <div
-                        key={r.id}
-                        style={{
-                          border: "1px solid #ddd",
-                          borderRadius: 10,
-                          padding: 10,
-                          background: "#fff",
-                        }}
-                      >
-                        <div style={{ fontWeight: 900 }}>
+                      <div key={r.id} className={styles.card}>
+                        <div className={styles.cardTitle}>
                           {car?.plateNumber || r.carId} — {safe(car?.make)} {safe(car?.model)}
                         </div>
-                        <div style={{ opacity: 0.75, fontSize: 12 }}>
+                        <div className={styles.cardMeta}>
                           Start: {fmtPL(r.startAt)}
                         </div>
 
-                        <div style={{ marginTop: 10 }}>
+                        <div className={styles.cardAction}>
                           <button
                             onClick={() => returnCar(r)}
                             disabled={busy}
-                            style={btnDanger(busy)}
+                            className={`${styles.btnDanger} ${busy ? styles.btnDisabled : ""}`}
                           >
                             {busy ? "..." : "Zwróć auto"}
                           </button>
@@ -751,30 +704,23 @@ export default function CarReservation() {
               )}
             </div>
 
-            {/* future reservations */}
-            <div style={{ border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>Moje przyszłe rezerwacje: {myFutureReservations.length}</div>
+            <div className={styles.innerPanel}>
+              <div className={styles.panelTitle}>
+                Moje przyszłe rezerwacje: {myFutureReservations.length}
+              </div>
 
               {myFutureReservations.length === 0 ? (
-                <div style={{ opacity: 0.75 }}>Brak przyszłych rezerwacji.</div>
+                <div className={styles.muted}>Brak przyszłych rezerwacji.</div>
               ) : (
-                <div style={{ display: "grid", gap: 10 }}>
+                <div className={styles.cardsList}>
                   {myFutureReservations.map((r) => {
                     const car = carsById.get(r.carId);
                     return (
-                      <div
-                        key={r.id}
-                        style={{
-                          border: "1px solid #ddd",
-                          borderRadius: 10,
-                          padding: 10,
-                          background: "#fff",
-                        }}
-                      >
-                        <div style={{ fontWeight: 900 }}>
+                      <div key={r.id} className={styles.card}>
+                        <div className={styles.cardTitle}>
                           {car?.plateNumber || r.carId} — {safe(car?.make)} {safe(car?.model)}
                         </div>
-                        <div style={{ opacity: 0.75, fontSize: 12 }}>
+                        <div className={styles.cardMeta}>
                           Od: {fmtPL(r.startAt)}
                           <br />
                           Do: {fmtPL(r.endAt)}
@@ -787,24 +733,23 @@ export default function CarReservation() {
             </div>
           </div>
 
-          <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
+          <div className={styles.note}>
             Zwrot działa tylko dla aktywnego NOW (endAt=null). Rezerwacje są tylko podglądowe w tym ekranie.
           </div>
         </div>
       )}
 
-      {/* MODE */}
       {loggedUser && (
-        <div style={box}>
-          <h3 style={{ marginTop: 0 }}>3) Wybór trybu</h3>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>3) Wybór trybu</h3>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className={styles.modeRow}>
+            <label className={styles.radioLabel}>
               <input type="radio" checked={mode === "NOW"} onChange={() => setMode("NOW")} />
               <strong>Wypożycz TERAZ</strong>
             </label>
 
-            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <label className={styles.radioLabel}>
               <input
                 type="radio"
                 checked={mode === "RESERVATION"}
@@ -815,11 +760,11 @@ export default function CarReservation() {
           </div>
 
           {mode === "RESERVATION" && (
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className={styles.reservationGrid}>
               <div>
-                <label style={label}>Start rezerwacji</label>
+                <label className={styles.label}>Start rezerwacji</label>
                 <input
-                  style={input}
+                  className={styles.input}
                   type="datetime-local"
                   value={resStartLocal}
                   onChange={(e) => setResStartLocal(e.target.value)}
@@ -827,9 +772,9 @@ export default function CarReservation() {
                 />
               </div>
               <div>
-                <label style={label}>Koniec rezerwacji</label>
+                <label className={styles.label}>Koniec rezerwacji</label>
                 <input
-                  style={input}
+                  className={styles.input}
                   type="datetime-local"
                   value={resEndLocal}
                   onChange={(e) => setResEndLocal(e.target.value)}
@@ -837,7 +782,7 @@ export default function CarReservation() {
                 />
               </div>
 
-              <div style={{ gridColumn: "1 / -1", opacity: 0.75, fontSize: 12 }}>
+              <div className={styles.gridFullNote}>
                 Rezerwacja blokuje okno: nikt nie wypożyczy ani nie zarezerwuje w kolizji.
               </div>
             </div>
@@ -845,60 +790,61 @@ export default function CarReservation() {
         </div>
       )}
 
-      {/* ACTION MESSAGE */}
       {loggedUser && actionMsg && (
         <div
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 14,
-            border: "1px solid",
-            borderColor: actionMsg.type === "ok" ? "#86efac" : "#fca5a5",
-            background: actionMsg.type === "ok" ? "#f0fdf4" : "#fef2f2",
-          }}
+          className={`${styles.actionMsg} ${
+            actionMsg.type === "ok" ? styles.actionMsgOk : styles.actionMsgError
+          }`}
         >
           {actionMsg.text}
         </div>
       )}
 
-      {/* AVAILABLE CARS */}
       {loggedUser && (
-        <div style={box}>
-          <h3 style={{ marginTop: 0 }}>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>
             4) Auta do wyboru ({mode === "NOW" ? "dostępne TERAZ" : "dostępne w oknie rezerwacji"}):{" "}
             {availableCars.length}
           </h3>
 
           {availableCars.length === 0 ? (
-            <div style={{ opacity: 0.8 }}>
+            <div className={styles.emptyText}>
               Brak dostępnych aut dla tego trybu/okna. (Status nie pozwala, ktoś wypożyczył, albo kolizja rezerwacji.)
             </div>
           ) : (
-            <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 10 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
                 <thead>
-                  <tr style={{ background: "#fafafa" }}>
-                    <th style={th}>Rejestracja</th>
-                    <th style={th}>Marka</th>
-                    <th style={th}>Model</th>
-                    <th style={th}>Status</th>
-                    <th style={th}>Akcja</th>
+                  <tr className={styles.tableHeadRow}>
+                    <th className={styles.th}>Rejestracja</th>
+                    <th className={styles.th}>Marka</th>
+                    <th className={styles.th}>Model</th>
+                    <th className={styles.th}>Status</th>
+                    <th className={styles.th}>Akcja</th>
                   </tr>
                 </thead>
                 <tbody>
                   {availableCars.map((c) => (
                     <tr key={c.id}>
-                      <td style={tdStrong}>{safe(c.plateNumber)}</td>
-                      <td style={td}>{safe(c.make)}</td>
-                      <td style={td}>{safe(c.model)}</td>
-                      <td style={td}>{safe(c.status)}</td>
-                      <td style={td}>
+                      <td className={styles.tdStrong}>{safe(c.plateNumber)}</td>
+                      <td className={styles.td}>{safe(c.make)}</td>
+                      <td className={styles.td}>{safe(c.model)}</td>
+                      <td className={styles.td}>{safe(c.status)}</td>
+                      <td className={styles.td}>
                         {mode === "NOW" ? (
-                          <button onClick={() => createNowRental(c)} disabled={busy} style={btnPrimary(busy)}>
+                          <button
+                            onClick={() => createNowRental(c)}
+                            disabled={busy}
+                            className={`${styles.btnPrimary} ${busy ? styles.btnDisabled : ""}`}
+                          >
                             {busy ? "..." : "Wypożycz TERAZ"}
                           </button>
                         ) : (
-                          <button onClick={() => createReservation(c)} disabled={busy} style={btnPrimary(busy)}>
+                          <button
+                            onClick={() => createReservation(c)}
+                            disabled={busy}
+                            className={`${styles.btnPrimary} ${busy ? styles.btnDisabled : ""}`}
+                          >
                             {busy ? "..." : "Zarezerwuj"}
                           </button>
                         )}
@@ -910,69 +856,15 @@ export default function CarReservation() {
             </div>
           )}
 
-          <div style={{ marginTop: 12, opacity: 0.75, fontSize: 12 }}>
+          <div className={styles.note}>
             Realtime: po wypożyczeniu/rezerwacji wpis trafia do <code>/rentals</code>, a lista aut od razu się przelicza.
           </div>
         </div>
       )}
 
-      <div style={{ opacity: 0.65, fontSize: 12 }}>
+      <div className={styles.footerStats}>
         Dane realtime: users={users.length}, cars={cars.length}, rentals={rentals.length}
       </div>
     </div>
   );
 }
-
-const th = {
-  textAlign: "left",
-  padding: "10px 10px",
-  borderBottom: "1px solid #eee",
-  whiteSpace: "nowrap",
-};
-
-const td = {
-  padding: "10px 10px",
-  borderBottom: "1px solid #f0f0f0",
-  verticalAlign: "top",
-};
-
-const tdStrong = {
-  ...td,
-  fontWeight: 900,
-  whiteSpace: "nowrap",
-};
-
-function btnPrimary(disabled) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: disabled ? "#eee" : "#111",
-    color: disabled ? "#111" : "#fff",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontWeight: 800,
-    width: "100%",
-  };
-}
-
-function btnDanger(disabled) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #7f1d1d",
-    background: disabled ? "#eee" : "#7f1d1d",
-    color: disabled ? "#111" : "#fff",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontWeight: 900,
-    width: "100%",
-  };
-}
-
-const btnGhost = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid #111",
-  background: "#fff",
-  cursor: "pointer",
-  fontWeight: 800,
-};

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import md5 from "blueimp-md5";
 import { database, ref, onValue, set } from "../FirebaseConfig";
 import styles from "./AdminCars.module.css";
+import Navbar from './Navbar';
 
 /** =======================
  *  TŁUMACZENIA PÓL (PL)
@@ -48,9 +49,10 @@ const PATH_LABELS_PL = {
   // === RENTALS (typowe) ===
   carId: "ID auta",
   borrowedByUserId: "ID użytkownika",
+  returnedByUserId: "ID użytkownika zwracającego",
   startAt: "Start",
   endAt: "Koniec",
-  type: "Typ",
+  type: "Typ"
 };
 
 const KEY_LABELS_PL = {
@@ -89,6 +91,7 @@ const KEY_LABELS_PL = {
 
   carId: "ID auta",
   borrowedByUserId: "ID użytkownika",
+  returnedByUserId: "ID użytkownika zwracającego",
   startAt: "Start",
   endAt: "Koniec",
   type: "Typ",
@@ -239,10 +242,44 @@ function isHiddenPath(path) {
 }
 
 function isIdPath(path) {
-    if (!path) return false;
-    const parts = String(path).split(".");
-    return parts[parts.length - 1] === "id";
-  }
+  if (!path) return false;
+  const parts = String(path).split(".");
+  return parts[parts.length - 1] === "id";
+}
+
+/** =======================
+ *  REGUŁY EDYCJI
+ *  ======================= */
+
+function isUserReferencePath(entityType, path) {
+  if (!path) return false;
+
+  // tylko dla RENTALS
+  if (entityType !== "rentals") return false;
+
+  return path === "borrowedByUserId" || path === "returnedByUserId";
+}
+
+function isReadOnlyPath(entityType, path) {
+  if (!path) return false;
+
+  // własne id zawsze readonly
+  if (isIdPath(path)) return true;
+
+  // users -> pin.salt readonly
+  if (entityType === "users" && path === "pin.salt") return true;
+
+  // rentals -> carId readonly
+  if (entityType === "rentals" && path === "carId") return true;
+
+  return false;
+}
+
+function canDeletePath(entityType, path) {
+  if (!path) return false;
+  if (isReadOnlyPath(entityType, path)) return false;
+  return true;
+}
 
 /** === Dynamic Editor (rekurencyjny) === **/
 function DynamicEditor({
@@ -250,40 +287,63 @@ function DynamicEditor({
   currentPath = "",
   label = "",
   disabled = false,
+  entityType,
+  userOptions = [],
   onRootChange,
   onDeletePath,
 }) {
-  // >>> najważniejsze: nic z audytu i nic z created*/updated* nie renderujemy
+  // nic z audytu i nic z created*/updated* nie renderujemy
   if (isHiddenPath(currentPath)) return null;
 
   const value = getAtPath(rootValue, currentPath);
   const t = typeOfValue(value);
 
+  const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "value");
+  const showLabel = translateLabelPL(currentPath, rawLabel);
+
+  const isReadOnly = isReadOnlyPath(entityType, currentPath);
+  const isUserRef = isUserReferencePath(entityType, currentPath);
+  const effectiveDisabled = disabled || isReadOnly;
+  const canDelete = canDeletePath(entityType, currentPath);
+
   // PRIMITIVES
   if (t === "string" || t === "number" || t === "boolean" || t === "null" || t === "undefined") {
-    const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "value");
-    const showLabel = translateLabelPL(currentPath, rawLabel);
-
-    const isId = isIdPath(currentPath);
-    const effectiveDisabled = disabled || isId;
-
-    const canDelete = !!currentPath && !isId;
-
     return (
       <div className={styles.fieldRow}>
         <div className={styles.fieldLabel}>
           <span>{showLabel}</span>
-          {currentPath && <span className={styles.fieldMeta}>{t}{isId ? " · readonly" : ""}</span>}
+          {currentPath && (
+            <span className={styles.fieldMeta}>
+              {t}
+              {isReadOnly ? " · readonly" : ""}
+            </span>
+          )}
         </div>
 
         <div className={styles.fieldControl}>
-          {t === "boolean" ? (
+          {isUserRef ? (
+            <select
+              className={styles.input}
+              disabled={effectiveDisabled}
+              value={value ?? ""}
+              onChange={(e) => {
+                onRootChange(setAtPath(rootValue, currentPath, e.target.value));
+              }}
+            >
+              <option value="">— wybierz użytkownika —</option>
+              {userOptions.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {/* {u.id} — {safe(u.name)} */}
+                  {safe(u.name)} | id: ({u.id})
+                </option>
+              ))}
+            </select>
+          ) : t === "boolean" ? (
             <select
               className={styles.input}
               disabled={effectiveDisabled}
               value={value ? "true" : "false"}
               onChange={(e) => {
-                if (isId) return;
                 const v = e.target.value === "true";
                 onRootChange(setAtPath(rootValue, currentPath, v));
               }}
@@ -298,7 +358,6 @@ function DynamicEditor({
               type="number"
               value={Number.isFinite(value) ? value : 0}
               onChange={(e) => {
-                if (isId) return;
                 onRootChange(setAtPath(rootValue, currentPath, coercePrimitive("number", e.target.value)));
               }}
             />
@@ -309,15 +368,13 @@ function DynamicEditor({
               value={value === null || value === undefined ? "" : String(value)}
               placeholder={value === null ? "null" : value === undefined ? "undefined" : ""}
               onChange={(e) => {
-                if (isId) return;
                 const newVal = coercePrimitive("string", e.target.value);
                 onRootChange(setAtPath(rootValue, currentPath, newVal));
               }}
             />
           )}
 
-          {/* Dla id: żadnych akcji */}
-          {!isId && (
+          {canDelete && (
             <div className={styles.fieldBtnRow}>
               <button
                 className={styles.btnGhost}
@@ -328,16 +385,14 @@ function DynamicEditor({
                 null
               </button>
 
-              {canDelete && (
-                <button
-                  className={styles.btnDanger}
-                  disabled={disabled}
-                  onClick={() => onDeletePath(currentPath)}
-                  title="Usuń to pole / element"
-                >
-                  Usuń
-                </button>
-              )}
+              <button
+                className={styles.btnDanger}
+                disabled={disabled}
+                onClick={() => onDeletePath(currentPath)}
+                title="Usuń to pole / element"
+              >
+                Usuń
+              </button>
             </div>
           )}
         </div>
@@ -347,8 +402,6 @@ function DynamicEditor({
 
   // ARRAY
   if (t === "array") {
-    const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "array");
-    const showLabel = translateLabelPL(currentPath, rawLabel);
     const arr = Array.isArray(value) ? value : [];
 
     return (
@@ -359,7 +412,7 @@ function DynamicEditor({
           </div>
 
           <div className={styles.nodeActions}>
-            {currentPath && (
+            {canDelete && (
               <button
                 className={styles.btnDanger}
                 disabled={disabled}
@@ -383,6 +436,8 @@ function DynamicEditor({
                   currentPath={pathJoin(currentPath, idx)}
                   label={`[${idx}]`}
                   disabled={disabled}
+                  entityType={entityType}
+                  userOptions={userOptions}
                   onRootChange={onRootChange}
                   onDeletePath={onDeletePath}
                 />
@@ -395,8 +450,6 @@ function DynamicEditor({
   }
 
   // OBJECT
-  const rawLabel = label || (currentPath ? currentPath.split(".").slice(-1)[0] : "object");
-  const showLabel = translateLabelPL(currentPath, rawLabel);
   const obj = isPlainObject(value) ? value : {};
 
   return (
@@ -406,20 +459,32 @@ function DynamicEditor({
       label={showLabel}
       obj={obj}
       disabled={disabled}
+      entityType={entityType}
+      userOptions={userOptions}
       onRootChange={onRootChange}
       onDeletePath={onDeletePath}
     />
   );
 }
 
-function ObjectNodeEditor({ rootValue, currentPath, label, obj, disabled, onRootChange, onDeletePath }) {
-  // filtrujemy klucze, żeby audit + created*/updated* nigdy nie weszły do UI
+function ObjectNodeEditor({
+  rootValue,
+  currentPath,
+  label,
+  obj,
+  disabled,
+  entityType,
+  userOptions,
+  onRootChange,
+  onDeletePath,
+}) {
   const entries = Object.entries(obj || {})
     .filter(([k]) => !isHiddenPath(pathJoin(currentPath, k)))
     .sort(([a], [b]) => a.localeCompare(b));
 
-  // jeśli po filtracji nic nie zostało, nie pokazuj pustego boxa
   if (entries.length === 0) return null;
+
+  const canDelete = canDeletePath(entityType, currentPath);
 
   return (
     <div className={styles.nodeBox}>
@@ -429,7 +494,7 @@ function ObjectNodeEditor({ rootValue, currentPath, label, obj, disabled, onRoot
         </div>
 
         <div className={styles.nodeActions}>
-          {currentPath && (
+          {canDelete && (
             <button
               className={styles.btnDanger}
               disabled={disabled}
@@ -450,6 +515,8 @@ function ObjectNodeEditor({ rootValue, currentPath, label, obj, disabled, onRoot
               currentPath={pathJoin(currentPath, k)}
               label={k}
               disabled={disabled}
+              entityType={entityType}
+              userOptions={userOptions}
               onRootChange={onRootChange}
               onDeletePath={onDeletePath}
             />
@@ -474,7 +541,7 @@ export default function AdminCars() {
   const [selectedCarId, setSelectedCarId] = useState("");
   const [selectedRentalId, setSelectedRentalId] = useState("");
 
-  // drafty do edycji (edytujesz w UI, zapisujesz jednym set())
+  // drafty do edycji
   const [draftUser, setDraftUser] = useState(null);
   const [draftCar, setDraftCar] = useState(null);
   const [draftRental, setDraftRental] = useState(null);
@@ -547,6 +614,10 @@ export default function AdminCars() {
     return m;
   }, [rentals]);
 
+  const userOptions = useMemo(() => {
+    return [...users].sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+  }, [users]);
+
   function setMessage(type, text) {
     setMsg({ type, text });
   }
@@ -602,9 +673,8 @@ export default function AdminCars() {
     return isActive ? `${styles.listItemBtn} ${styles.listItemBtnActive}` : styles.listItemBtn;
   }
 
-  // ===== SAVE helpers (set whole object) =====
+  // ===== SAVE helpers =====
   async function saveWhole(kind) {
-    // kind: "users" | "cars" | "rentals"
     let id = "";
     let obj = null;
 
@@ -675,32 +745,16 @@ export default function AdminCars() {
     setMessage("ok", "Ustawiono nowy PIN (hash+salt) w edytorze. Kliknij Zapisz, żeby wysłać do DB.");
   }
 
-  function deletePathInDraft(draft, setDraftFn, path) {
+  function deletePathInDraft(draft, setDraftFn, path, entityType) {
+    if (!canDeletePath(entityType, path)) return;
     const next = deleteAtPath(draft, path);
     setDraftFn(next);
   }
 
   return (
     <div className={styles.wrapper}>
-      <h2 className={styles.pageTitle}>Admin Panel (pełny podgląd + edycja pól, bez JSON)</h2>
-
-      {/* NAV LINKS */}
-      <div className={styles.box}>
-        <h3 className={styles.boxTitle}>Skróty</h3>
-
-        <div className={styles.navRow}>
-          <NavBtn to="/addnewcar" text="AddNewCar" />
-          <NavBtn to="/addnewusers" text="AddNewUsers" />
-          <NavBtn to="/showallcars" text="ShowAllCars" />
-          <NavBtn to="/showallreservations" text="ShowAllReservations" />
-          <NavBtn to="/carreservation" text="CarReservation" />
-        </div>
-
-        <div className={styles.helpText}>
-          Panel poniżej pokazuje i pozwala edytować <code>/users</code>, <code>/cars</code>, <code>/rentals</code> —
-          każde pole, bez grzebania w JSON (podpisy pól po polsku).
-        </div>
-      </div>
+      <h2 className={styles.pageTitle}>Admin Panel</h2>
+      <Navbar/>
 
       {/* MESSAGE */}
       {msg && (
@@ -776,8 +830,8 @@ export default function AdminCars() {
                       </div>
 
                       <div className={styles.smallNote}>
-                        Możesz edytować też ręcznie <code>pin.hashMd5</code> / <code>pin.salt</code> poniżej, ale reset
-                        robi to automatem.
+                        Możesz edytować ręcznie <code>pin.hashMd5</code>, ale <code>pin.salt</code> jest readonly.
+                        Reset PIN ustawia oba pola automatycznie.
                       </div>
 
                       <DynamicEditor
@@ -785,8 +839,10 @@ export default function AdminCars() {
                         currentPath=""
                         label="Użytkownik"
                         disabled={busy}
+                        entityType="users"
+                        userOptions={userOptions}
                         onRootChange={setDraftUser}
-                        onDeletePath={(p) => deletePathInDraft(draftUser, setDraftUser, p)}
+                        onDeletePath={(p) => deletePathInDraft(draftUser, setDraftUser, p, "users")}
                       />
                     </>
                   )}
@@ -842,8 +898,10 @@ export default function AdminCars() {
                         currentPath=""
                         label="Auto"
                         disabled={busy}
+                        entityType="cars"
+                        userOptions={userOptions}
                         onRootChange={setDraftCar}
-                        onDeletePath={(p) => deletePathInDraft(draftCar, setDraftCar, p)}
+                        onDeletePath={(p) => deletePathInDraft(draftCar, setDraftCar, p, "cars")}
                       />
                     </>
                   )}
@@ -864,7 +922,8 @@ export default function AdminCars() {
                   <div className={styles.listBody}>
                     {rentals.map((r) => {
                       const car = carsById.get(r.carId);
-                      const u = usersById.get(r.borrowedByUserId);
+                      const borrowedUser = usersById.get(r.borrowedByUserId);
+                      const returnedUser = usersById.get(r.returnedByUserId);
                       const type = (r.type || "").toUpperCase();
                       const status = (r.status || "").toUpperCase();
                       const activeLabel =
@@ -883,7 +942,10 @@ export default function AdminCars() {
                             rentalId: {r.id} · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · end:{" "}
                             {fmtPL(r.endAt)}
                           </div>
-                          <div className={styles.itemMeta}>user: {safe(u?.name, r.borrowedByUserId)}</div>
+                          <div className={styles.itemMeta}>
+                            user: {safe(borrowedUser?.name, r.borrowedByUserId)}
+                            {r?.returnedByUserId ? ` · zwrócił: ${safe(returnedUser?.name, r.returnedByUserId)}` : ""}
+                          </div>
                         </button>
                       );
                     })}
@@ -902,13 +964,20 @@ export default function AdminCars() {
                         </button>
                       </div>
 
+                      <div className={styles.smallNote}>
+                        W tym widoku <code>borrowedByUserId</code> i <code>returnedByUserId</code> wybierasz z listy
+                        użytkowników. <code>id</code> i <code>carId</code> są readonly.
+                      </div>
+
                       <DynamicEditor
                         rootValue={draftRental}
                         currentPath=""
                         label="Wypożyczenie"
                         disabled={busy}
+                        entityType="rentals"
+                        userOptions={userOptions}
                         onRootChange={setDraftRental}
-                        onDeletePath={(p) => deletePathInDraft(draftRental, setDraftRental, p)}
+                        onDeletePath={(p) => deletePathInDraft(draftRental, setDraftRental, p, "rentals")}
                       />
                     </>
                   )}

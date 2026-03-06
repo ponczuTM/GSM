@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, onValue } from "../FirebaseConfig";
+import styles from "./ShowAllCars.module.css";
+import Navbar from './Navbar';
 
 function safe(v, fallback = "—") {
   if (v === null || v === undefined || v === "") return fallback;
@@ -36,19 +38,24 @@ export default function ShowAllCars() {
       carsRef,
       (snap) => {
         const val = snap.val();
+
         if (!val) {
           setCars([]);
           setLoading(false);
           return;
         }
+
         const arr = Object.values(val);
-        // sort: najpierw nie-archiwalne, potem po tablicy
+
         arr.sort((a, b) => {
           const aArch = !!a?.isArchived;
           const bArch = !!b?.isArchived;
+
           if (aArch !== bArch) return aArch ? 1 : -1;
+
           return (a?.plateNumber || "").localeCompare(b?.plateNumber || "");
         });
+
         setCars(arr);
         setLoading(false);
       },
@@ -62,89 +69,95 @@ export default function ShowAllCars() {
     return () => unsub();
   }, []);
 
-  const wrapper = { maxWidth: 1200, margin: "0 auto", padding: 18 };
-
   return (
-    <div style={wrapper}>
-      <h2 style={{ marginBottom: 10 }}>Wszystkie samochody (testowo z RTDB)</h2>
-      <p style={{ marginTop: 0, opacity: 0.8 }}>
+    <div className={styles.wrapper}>
+      <Navbar/>
+      <h2 className={styles.title}>Wszystkie samochody (testowo z RTDB)</h2>
+
+      <p className={styles.subtitle}>
         Odczyt z <code>/cars</code>. Rekordy: {cars.length}
       </p>
 
       {loading ? (
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10 }}>
-          Ładuję dane...
-        </div>
+        <div className={styles.infoBox}>Ładuję dane...</div>
       ) : cars.length === 0 ? (
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10 }}>
-          Brak samochodów w bazie.
-        </div>
+        <div className={styles.infoBox}>Brak samochodów w bazie.</div>
       ) : (
-        <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
             <thead>
-              <tr style={{ background: "#fafafa" }}>
-                <th style={th}>Tablica</th>
-                <th style={th}>Marka / Model</th>
-                <th style={th}>Status</th>
-                <th style={th}>Baza</th>
-                <th style={th}>Przegląd</th>
-                <th style={th}>Ubezpieczenie</th>
-                <th style={th}>Olej (data)</th>
-                <th style={th}>Olej (km)</th>
-                <th style={th}>Akt. km</th>
-                <th style={th}>Wyposażenie</th>
-                <th style={th}>Opony</th>
-                <th style={th}>Usterki</th>
-                <th style={th}>Archiw.</th>
-                <th style={th}>Audit</th>
-                <th style={th}>Fleet Card PIN</th>
+              <tr className={styles.tableHeadRow}>
+                <th className={styles.th}>Tablica</th>
+                <th className={styles.th}>Marka / Model</th>
+                <th className={styles.th}>Status</th>
+                <th className={styles.th}>Baza</th>
+                <th className={styles.th}>Przegląd</th>
+                <th className={styles.th}>Ubezpieczenie</th>
+                <th className={styles.th}>Olej (data)</th>
+                <th className={styles.th}>Olej (km)</th>
+                <th className={styles.th}>Akt. km</th>
+                <th className={styles.th}>Wyposażenie</th>
+                <th className={styles.th}>Opony</th>
+                <th className={styles.th}>Usterki</th>
+                <th className={styles.th}>Archiw.</th>
+                <th className={styles.th}>Audit</th>
+                <th className={styles.th}>Fleet Card PIN</th>
               </tr>
             </thead>
+
             <tbody>
               {cars.map((c) => {
                 const m = c?.maintenance || {};
                 const e = c?.equipment || {};
                 const faults = Array.isArray(c?.faults) ? c.faults : [];
-                const openFaults = faults.filter((f) => (f?.status || "").toUpperCase() === "OPEN");
+                const openFaults = faults.filter(
+                  (f) => (f?.status || "").toUpperCase() === "OPEN"
+                );
 
-                // Wrażliwe: pokazuję tylko adminowi, i tak najlepiej trzymać to po stronie reguł Firebase.
                 const fleetPin = c?.fleetCard?.shellCardPinEncrypted || null;
 
                 return (
-                  <tr key={c.id} style={{ background: c.isArchived ? "#fcfcfc" : "#fff" }}>
-                    <td style={tdStrong}>{safe(c.plateNumber)}</td>
-                    <td style={td}>
+                  <tr
+                    key={c.id}
+                    className={c.isArchived ? styles.archivedRow : styles.activeRow}
+                  >
+                    <td className={styles.tdStrong}>{safe(c.plateNumber)}</td>
+
+                    <td className={styles.td}>
                       {safe(c.make)} / {safe(c.model)}
-                      <div style={{ opacity: 0.7, fontSize: 12 }}>
-                        VIN: {safe(c.vin)}
-                        {" · "}
-                        Wewn.: {safe(c.internalNumber)}
+                      <div className={styles.metaText}>
+                        VIN: {safe(c.vin)} {" · "} Wewn.: {safe(c.internalNumber)}
                       </div>
                     </td>
-                    <td style={td}>{safe(c.status)}</td>
-                    <td style={td}>{safe(c.baseLocation)}</td>
-                    <td style={td}>{fmtDate(m.inspectionDueAt)}</td>
-                    <td style={td}>{fmtDate(m.insuranceDueAt)}</td>
-                    <td style={td}>{fmtDate(m.lastOilServiceAt)}</td>
-                    <td style={td}>{safe(m.lastOilServiceMileage)}</td>
-                    <td style={td}>{safe(m.currentMileage)}</td>
-                    <td style={td}>
+
+                    <td className={styles.td}>{safe(c.status)}</td>
+                    <td className={styles.td}>{safe(c.baseLocation)}</td>
+                    <td className={styles.td}>{fmtDate(m.inspectionDueAt)}</td>
+                    <td className={styles.td}>{fmtDate(m.insuranceDueAt)}</td>
+                    <td className={styles.td}>{fmtDate(m.lastOilServiceAt)}</td>
+                    <td className={styles.td}>{safe(m.lastOilServiceMileage)}</td>
+                    <td className={styles.td}>{safe(m.currentMileage)}</td>
+
+                    <td className={styles.td}>
                       Trójkąt: {yesNo(e.hasTriangle)}
                       <br />
                       Gaśnica: {yesNo(e.hasExtinguisher)}
                       <br />
                       Apteczka: {yesNo(e.hasFirstAidKit)}
                     </td>
-                    <td style={td}>{safe(e.tiresDescription)}</td>
-                    <td style={td}>
+
+                    <td className={styles.td}>{safe(e.tiresDescription)}</td>
+
+                    <td className={styles.td}>
                       Wszystkie: {faults.length}
                       <br />
                       Otwarte: {openFaults.length}
                     </td>
-                    <td style={td}>{c.isArchived ? "TAK" : "NIE"}</td>
-                    <td style={td}>
-                      <div style={{ fontSize: 12, opacity: 0.85 }}>
+
+                    <td className={styles.td}>{c.isArchived ? "TAK" : "NIE"}</td>
+
+                    <td className={styles.td}>
+                      <div className={styles.auditText}>
                         createdAt: {safe(c?.audit?.createdAt)}
                         <br />
                         createdBy: {safe(c?.audit?.createdBy)}
@@ -154,13 +167,14 @@ export default function ShowAllCars() {
                         updatedBy: {safe(c?.audit?.updatedBy)}
                       </div>
                     </td>
-                    <td style={td}>
+
+                    <td className={styles.td}>
                       {isAdmin ? (
-                        <code style={{ fontSize: 12 }}>
+                        <code className={styles.pinCode}>
                           {fleetPin ? fleetPin : "—"}
                         </code>
                       ) : (
-                        <span style={{ opacity: 0.6 }}>ukryte</span>
+                        <span className={styles.hiddenText}>ukryte</span>
                       )}
                     </td>
                   </tr>
@@ -171,28 +185,10 @@ export default function ShowAllCars() {
         </div>
       )}
 
-      <div style={{ marginTop: 14, opacity: 0.75, fontSize: 12 }}>
-        Uwaga: “Fleet Card PIN” powinien być chroniony regułami Firebase (admin-only).
+      <div className={styles.note}>
+        Uwaga: „Fleet Card PIN” powinien być chroniony regułami Firebase
+        (admin-only).
       </div>
     </div>
   );
 }
-
-const th = {
-  textAlign: "left",
-  padding: "10px 10px",
-  borderBottom: "1px solid #eee",
-  whiteSpace: "nowrap",
-};
-
-const td = {
-  padding: "10px 10px",
-  borderBottom: "1px solid #f0f0f0",
-  verticalAlign: "top",
-};
-
-const tdStrong = {
-  ...td,
-  fontWeight: 800,
-  whiteSpace: "nowrap",
-};

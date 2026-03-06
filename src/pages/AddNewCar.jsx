@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { database, ref, set, push, get } from "../FirebaseConfig";
+import styles from "./AddNewCar.module.css";
+import Navbar from './Navbar';
 
 // Pomocnicze: zamiana wartości z <input type="date"> na ISO (UTC)
 function dateToIsoOrNull(dateStr) {
@@ -7,16 +9,6 @@ function dateToIsoOrNull(dateStr) {
   // dateStr: "YYYY-MM-DD"
   const d = new Date(`${dateStr}T00:00:00.000Z`);
   return d.toISOString();
-}
-
-// Pomocnicze: value do <input type="date"> z ISO
-function isoToDateInputValue(iso) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toISOString().slice(0, 10);
-  } catch {
-    return "";
-  }
 }
 
 const STATUS_OPTIONS = ["AVAILABLE", "IN_SERVICE", "DAMAGED", "UNFIT"];
@@ -65,8 +57,10 @@ export default function AddNewCar() {
   async function plateIsUnique(plateNumber) {
     const snap = await get(ref(database, "cars"));
     if (!snap.exists()) return true;
+
     const carsObj = snap.val();
     const cars = Object.values(carsObj);
+
     return !cars.some(
       (c) => (c?.plateNumber || "").toUpperCase() === plateNumber.toUpperCase()
     );
@@ -86,10 +80,15 @@ export default function AddNewCar() {
     }
 
     setSaving(true);
+
     try {
       const unique = await plateIsUnique(plate);
+
       if (!unique) {
-        setMsg({ type: "error", text: "Ta tablica rejestracyjna już istnieje." });
+        setMsg({
+          type: "error",
+          text: "Ta tablica rejestracyjna już istnieje.",
+        });
         setSaving(false);
         return;
       }
@@ -98,7 +97,7 @@ export default function AddNewCar() {
 
       const carsRef = ref(database, "cars");
       const newCarRef = push(carsRef);
-      const id = newCarRef.key; // unikalny id z Firebase
+      const id = newCarRef.key;
 
       const payload = {
         id,
@@ -180,46 +179,19 @@ export default function AddNewCar() {
     }
   }
 
-  const boxStyle = {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 14,
-    background: "#fff",
-  };
-
-  const grid2 = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  };
-
-  const labelStyle = { display: "block", fontSize: 12, opacity: 0.8, marginBottom: 6 };
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #ccc",
-    outline: "none",
-  };
-
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: 18 }}>
-      <h2 style={{ marginBottom: 10 }}>Dodaj nowy samochód</h2>
-      <p style={{ marginTop: 0, opacity: 0.8 }}>
+    <div className={styles.wrapper}>
+      <Navbar/>
+      <h2 className={styles.title}>Dodaj nowy samochód</h2>
+      <p className={styles.subtitle}>
         Zapis do Firebase RTDB: <code>/cars</code>
       </p>
 
       {msg && (
         <div
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 14,
-            border: "1px solid",
-            borderColor: msg.type === "ok" ? "#86efac" : "#fca5a5",
-            background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2",
-          }}
+          className={`${styles.message} ${
+            msg.type === "ok" ? styles.messageOk : styles.messageError
+          }`}
         >
           {msg.text}
         </div>
@@ -227,23 +199,27 @@ export default function AddNewCar() {
 
       <form onSubmit={handleSubmit}>
         {/* Identyfikacja */}
-        <div style={boxStyle}>
-          <h3 style={{ marginTop: 0 }}>Dane identyfikacyjne</h3>
-          <div style={grid2}>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>Dane identyfikacyjne</h3>
+
+          <div className={styles.grid2}>
             <div>
-              <label style={labelStyle}>Tablica rejestracyjna (unique) *</label>
+              <label className={styles.label}>
+                Tablica rejestracyjna (unique) *
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.plateNumber}
                 onChange={(e) => setField("plateNumber", e.target.value)}
                 placeholder="np. CT257CU"
                 autoComplete="off"
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Status operacyjny</label>
+              <label className={styles.label}>Status operacyjny</label>
               <select
-                style={inputStyle}
+                className={styles.input}
                 value={form.status}
                 onChange={(e) => setField("status", e.target.value)}
               >
@@ -256,19 +232,20 @@ export default function AddNewCar() {
             </div>
 
             <div>
-              <label style={labelStyle}>Marka *</label>
+              <label className={styles.label}>Marka *</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.make}
                 onChange={(e) => setField("make", e.target.value)}
                 placeholder="np. PEUGEOT"
                 autoComplete="off"
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Model *</label>
+              <label className={styles.label}>Model *</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.model}
                 onChange={(e) => setField("model", e.target.value)}
                 placeholder="np. EXPERT"
@@ -277,19 +254,22 @@ export default function AddNewCar() {
             </div>
 
             <div>
-              <label style={labelStyle}>VIN (opcjonalnie)</label>
+              <label className={styles.label}>VIN (opcjonalnie)</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.vin}
                 onChange={(e) => setField("vin", e.target.value)}
                 placeholder="np. VF3EXPERT123456789"
                 autoComplete="off"
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Numer wewnętrzny (opcjonalnie)</label>
+              <label className={styles.label}>
+                Numer wewnętrzny (opcjonalnie)
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.internalNumber}
                 onChange={(e) => setField("internalNumber", e.target.value)}
                 placeholder="np. F-001"
@@ -297,10 +277,12 @@ export default function AddNewCar() {
               />
             </div>
 
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>Lokalizacja bazowa (opcjonalnie)</label>
+            <div className={styles.fullWidth}>
+              <label className={styles.label}>
+                Lokalizacja bazowa (opcjonalnie)
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.baseLocation}
                 onChange={(e) => setField("baseLocation", e.target.value)}
                 placeholder="np. Baza Katowice"
@@ -311,51 +293,64 @@ export default function AddNewCar() {
         </div>
 
         {/* Terminy i utrzymanie */}
-        <div style={boxStyle}>
-          <h3 style={{ marginTop: 0 }}>Terminy i utrzymanie</h3>
-          <div style={grid2}>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>Terminy i utrzymanie</h3>
+
+          <div className={styles.grid2}>
             <div>
-              <label style={labelStyle}>Termin przeglądu</label>
+              <label className={styles.label}>Termin przeglądu</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 type="date"
                 value={form.inspectionDueAt}
                 onChange={(e) => setField("inspectionDueAt", e.target.value)}
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Termin ubezpieczenia</label>
+              <label className={styles.label}>Termin ubezpieczenia</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 type="date"
                 value={form.insuranceDueAt}
                 onChange={(e) => setField("insuranceDueAt", e.target.value)}
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Olej – data ostatniego serwisu</label>
+              <label className={styles.label}>
+                Olej – data ostatniego serwisu
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 type="date"
                 value={form.lastOilServiceAt}
                 onChange={(e) => setField("lastOilServiceAt", e.target.value)}
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Olej – przebieg przy serwisie</label>
+              <label className={styles.label}>
+                Olej – przebieg przy serwisie
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 type="number"
                 value={form.lastOilServiceMileage}
-                onChange={(e) => setField("lastOilServiceMileage", e.target.value)}
+                onChange={(e) =>
+                  setField("lastOilServiceMileage", e.target.value)
+                }
                 placeholder="np. 142300"
                 min="0"
               />
             </div>
+
             <div>
-              <label style={labelStyle}>Aktualny przebieg (opcjonalnie)</label>
+              <label className={styles.label}>
+                Aktualny przebieg (opcjonalnie)
+              </label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 type="number"
                 value={form.currentMileage}
                 onChange={(e) => setField("currentMileage", e.target.value)}
@@ -367,58 +362,61 @@ export default function AddNewCar() {
         </div>
 
         {/* Wyposażenie */}
-        <div style={boxStyle}>
-          <h3 style={{ marginTop: 0 }}>Wyposażenie / stan</h3>
-          <div style={grid2}>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>Wyposażenie / stan</h3>
+
+          <div className={styles.grid2}>
             <div>
-              <label style={labelStyle}>Trójkąt</label>
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <label className={styles.label}>Trójkąt</label>
+              <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
                   checked={form.hasTriangle}
                   onChange={(e) => setField("hasTriangle", e.target.checked)}
                 />
-                <span style={{ opacity: 0.9 }}>
+                <span className={styles.checkboxText}>
                   {form.hasTriangle ? "TAK" : "NIE"}
                 </span>
               </label>
             </div>
 
             <div>
-              <label style={labelStyle}>Gaśnica</label>
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <label className={styles.label}>Gaśnica</label>
+              <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
                   checked={form.hasExtinguisher}
-                  onChange={(e) => setField("hasExtinguisher", e.target.checked)}
+                  onChange={(e) =>
+                    setField("hasExtinguisher", e.target.checked)
+                  }
                 />
-                <span style={{ opacity: 0.9 }}>
+                <span className={styles.checkboxText}>
                   {form.hasExtinguisher ? "TAK" : "NIE"}
                 </span>
               </label>
             </div>
 
             <div>
-              <label style={labelStyle}>Apteczka</label>
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <label className={styles.label}>Apteczka</label>
+              <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
                   checked={form.hasFirstAidKit}
                   onChange={(e) => setField("hasFirstAidKit", e.target.checked)}
                 />
-                <span style={{ opacity: 0.9 }}>
+                <span className={styles.checkboxText}>
                   {form.hasFirstAidKit ? "TAK" : "NIE"}
                 </span>
               </label>
             </div>
 
             <div>
-              <label style={labelStyle}>Opony/koła (opis)</label>
+              <label className={styles.label}>Opony/koła (opis)</label>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.tiresDescription}
                 onChange={(e) => setField("tiresDescription", e.target.value)}
-                placeholder='np. zimowe 16" stalowe'
+                placeholder={'np. zimowe 16" stalowe'}
                 autoComplete="off"
               />
             </div>
@@ -426,14 +424,17 @@ export default function AddNewCar() {
         </div>
 
         {/* Fleet card */}
-        <div style={boxStyle}>
-          <h3 style={{ marginTop: 0 }}>Pin do karty flotowej</h3>
-          <div style={grid2}>
-            <div style={{ gridColumn: "1 / -1" }}>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>Pin do karty flotowej</h3>
+
+          <div className={styles.grid2}>
+            <div className={styles.fullWidth}>
               <input
-                style={inputStyle}
+                className={styles.input}
                 value={form.shellCardPinEncrypted}
-                onChange={(e) => setField("shellCardPinEncrypted", e.target.value)}
+                onChange={(e) =>
+                  setField("shellCardPinEncrypted", e.target.value)
+                }
                 placeholder="np. 1234"
                 autoComplete="off"
               />
@@ -444,16 +445,9 @@ export default function AddNewCar() {
         <button
           type="submit"
           disabled={saving}
-          style={{
-            padding: "12px 16px",
-            borderRadius: 10,
-            border: "1px solid #111",
-            background: saving ? "#eee" : "#111",
-            color: saving ? "#111" : "#fff",
-            cursor: saving ? "not-allowed" : "pointer",
-            width: "100%",
-            fontWeight: 700,
-          }}
+          className={`${styles.submitButton} ${
+            saving ? styles.submitButtonDisabled : ""
+          }`}
         >
           {saving ? "Zapisuję..." : "Dodaj samochód"}
         </button>

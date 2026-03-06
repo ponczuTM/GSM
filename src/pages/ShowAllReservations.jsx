@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, onValue } from "../FirebaseConfig";
+import styles from "./ShowAllReservations.module.css";
+import Navbar from './Navbar';
 
 function safe(v, fallback = "—") {
   if (v === null || v === undefined || v === "") return fallback;
@@ -92,7 +94,6 @@ export default function ShowAllReservations() {
       return active && noEnd;
     });
 
-    // sort: najnowsze startAt pierwsze
     list.sort((a, b) => String(b?.startAt || "").localeCompare(String(a?.startAt || "")));
     return list;
   }, [onlyNowRentals]);
@@ -104,7 +105,6 @@ export default function ShowAllReservations() {
       return status !== "ACTIVE" || ended;
     });
 
-    // sort: najnowsze zakończone pierwsze (endAt), fallback startAt
     list.sort((a, b) => {
       const ae = String(a?.endAt || "");
       const be = String(b?.endAt || "");
@@ -124,50 +124,50 @@ export default function ShowAllReservations() {
 
     return (
       <tr key={r.id}>
-        <td style={tdStrong}>
+        <td className={styles.tdStrong}>
           {safe(car?.plateNumber, r.carId)}
-          <div style={{ opacity: 0.7, fontSize: 12 }}>
+          <div className={styles.subText}>
             {safe(car?.make)} {safe(car?.model)}
           </div>
         </td>
 
-        <td style={td}>
+        <td className={styles.td}>
           {safe(borrowedBy?.name, r.borrowedByUserId)}
-          <div style={{ opacity: 0.7, fontSize: 12 }}>
+          <div className={styles.subText}>
             userId: <code>{safe(r.borrowedByUserId)}</code>
           </div>
         </td>
 
-        <td style={td}>
+        <td className={styles.td}>
           {fmtPL(r.startAt)}
-          <div style={{ opacity: 0.7, fontSize: 12 }}>
+          <div className={styles.subText}>
             rentalId: <code>{safe(r.id)}</code>
           </div>
         </td>
 
-        <td style={td}>
+        <td className={styles.td}>
           {isNullish(r.endAt) ? (
-            <span style={{ fontWeight: 900 }}>— (w trakcie)</span>
+            <span className={styles.inProgress}>— (w trakcie)</span>
           ) : (
             fmtPL(r.endAt)
           )}
         </td>
 
-        <td style={td}>
+        <td className={styles.td}>
           {isNullish(r.returnedByUserId) ? (
             "—"
           ) : (
             <>
               {safe(returnedBy?.name, r.returnedByUserId)}
-              <div style={{ opacity: 0.7, fontSize: 12 }}>
+              <div className={styles.subText}>
                 <code>{safe(r.returnedByUserId)}</code>
               </div>
             </>
           )}
         </td>
 
-        <td style={td}>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>
+        <td className={styles.td}>
+          <div className={styles.auditText}>
             status: <strong>{safe(r.status)}</strong>
             <br />
             createdAt: {safe(r?.audit?.createdAt)}
@@ -183,42 +183,33 @@ export default function ShowAllReservations() {
     );
   }
 
-  const wrapper = { maxWidth: 1300, margin: "0 auto", padding: 18 };
-  const box = {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 16,
-    background: "#fff",
-    marginBottom: 14,
-  };
-
   return (
-    <div style={wrapper}>
-      <h2 style={{ marginBottom: 10 }}>Wypożyczenia (NOW) – aktualne i historia</h2>
-      <p style={{ marginTop: 0, opacity: 0.8 }}>
+    <div className={styles.wrapper}>
+      <Navbar/>
+      <h2 className={styles.title}>Wypożyczenia (NOW) – aktualne i historia</h2>
+      <p className={styles.source}>
         Źródło: <code>/rentals</code> (tylko <code>type="NOW"</code>).
       </p>
 
       {loading ? (
-        <div style={box}>Ładuję dane...</div>
+        <div className={styles.box}>Ładuję dane...</div>
       ) : (
         <>
-          {/* ACTIVE */}
-          <div style={box}>
-            <h3 style={{ marginTop: 0 }}>Aktualnie wypożyczone: {activeNow.length}</h3>
+          <div className={styles.box}>
+            <h3 className={styles.sectionTitle}>Aktualnie wypożyczone: {activeNow.length}</h3>
             {activeNow.length === 0 ? (
-              <div style={{ opacity: 0.8 }}>Brak aktywnych wypożyczeń.</div>
+              <div className={styles.emptyText}>Brak aktywnych wypożyczeń.</div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 10 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
                   <thead>
-                    <tr style={{ background: "#fafafa" }}>
-                      <th style={th}>Auto</th>
-                      <th style={th}>Kto wypożyczył</th>
-                      <th style={th}>Start</th>
-                      <th style={th}>Koniec</th>
-                      <th style={th}>Kto oddał</th>
-                      <th style={th}>Audit / status</th>
+                    <tr className={styles.tableHeadRow}>
+                      <th className={styles.th}>Auto</th>
+                      <th className={styles.th}>Kto wypożyczył</th>
+                      <th className={styles.th}>Start</th>
+                      <th className={styles.th}>Koniec</th>
+                      <th className={styles.th}>Kto oddał</th>
+                      <th className={styles.th}>Audit / status</th>
                     </tr>
                   </thead>
                   <tbody>{activeNow.map(renderRow)}</tbody>
@@ -227,22 +218,21 @@ export default function ShowAllReservations() {
             )}
           </div>
 
-          {/* PAST */}
-          <div style={box}>
-            <h3 style={{ marginTop: 0 }}>Ubiegłe wypożyczenia: {pastNow.length}</h3>
+          <div className={styles.box}>
+            <h3 className={styles.sectionTitle}>Ubiegłe wypożyczenia: {pastNow.length}</h3>
             {pastNow.length === 0 ? (
-              <div style={{ opacity: 0.8 }}>Brak historii wypożyczeń.</div>
+              <div className={styles.emptyText}>Brak historii wypożyczeń.</div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 10 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
                   <thead>
-                    <tr style={{ background: "#fafafa" }}>
-                      <th style={th}>Auto</th>
-                      <th style={th}>Kto wypożyczył</th>
-                      <th style={th}>Start</th>
-                      <th style={th}>Koniec</th>
-                      <th style={th}>Kto oddał</th>
-                      <th style={th}>Audit / status</th>
+                    <tr className={styles.tableHeadRow}>
+                      <th className={styles.th}>Auto</th>
+                      <th className={styles.th}>Kto wypożyczył</th>
+                      <th className={styles.th}>Start</th>
+                      <th className={styles.th}>Koniec</th>
+                      <th className={styles.th}>Kto oddał</th>
+                      <th className={styles.th}>Audit / status</th>
                     </tr>
                   </thead>
                   <tbody>{pastNow.map(renderRow)}</tbody>
@@ -253,28 +243,9 @@ export default function ShowAllReservations() {
         </>
       )}
 
-      <div style={{ opacity: 0.65, fontSize: 12 }}>
+      <div className={styles.footerStats}>
         users={users.length}, cars={cars.length}, rentals={rentals.length}
       </div>
     </div>
   );
 }
-
-const th = {
-  textAlign: "left",
-  padding: "10px 10px",
-  borderBottom: "1px solid #eee",
-  whiteSpace: "nowrap",
-};
-
-const td = {
-  padding: "10px 10px",
-  borderBottom: "1px solid #f0f0f0",
-  verticalAlign: "top",
-};
-
-const tdStrong = {
-  ...td,
-  fontWeight: 900,
-  whiteSpace: "nowrap",
-};

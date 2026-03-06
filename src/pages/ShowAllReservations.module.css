@@ -1,0 +1,86 @@
+.wrapper {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.title {
+  margin-bottom: 10px;
+}
+
+.source {
+  margin-top: 0;
+  opacity: 0.8;
+}
+
+.box {
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+  margin-bottom: 14px;
+}
+
+.sectionTitle {
+  margin-top: 0;
+}
+
+.emptyText {
+  opacity: 0.8;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid #eee;
+  border-radius: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tableHeadRow {
+  background: #fafafa;
+}
+
+.th {
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.td {
+  padding: 10px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+}
+
+.tdStrong {
+  padding: 10px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.subText {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.inProgress {
+  font-weight: 900;
+}
+
+.auditText {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.footerStats {
+  opacity: 0.65;
+  font-size: 12px;
+}

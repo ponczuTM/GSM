@@ -1,22 +1,25 @@
 import React, { useMemo, useState } from "react";
 import { database, ref, set, push, get } from "../FirebaseConfig";
 import md5 from "blueimp-md5";
+import styles from "./AddNewUsers.module.css";
+import Navbar from './Navbar';
+
 
 function randomSalt(len = 10) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < len; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
   return `slt_${out}`;
 }
 
 function normalizeName(name) {
-  return name
-    .trim()
-    .replace(/\s+/g, " ");
+  return name.trim().replace(/\s+/g, " ");
 }
 
 function isValidPin(pin) {
-  // PIN: tylko cyfry, 4-8 znaków (zmień jak chcesz)
+  // PIN: tylko cyfry, 4-8 znaków
   return /^[0-9]{4,8}$/.test(pin);
 }
 
@@ -43,9 +46,11 @@ export default function AddNewUsers() {
     // Nie jest wymagane, ale przydatne: nie dodajesz 2x "Jan Kowalski"
     const snap = await get(ref(database, "users"));
     if (!snap.exists()) return true;
+
     const usersObj = snap.val();
     const users = Object.values(usersObj);
     const target = name.toLowerCase();
+
     return !users.some((u) => (u?.name || "").toLowerCase() === target);
   }
 
@@ -60,16 +65,21 @@ export default function AddNewUsers() {
       setMsg({ type: "error", text: "Podaj imię i nazwisko." });
       return;
     }
+
     if (!isValidPin(pin)) {
       setMsg({ type: "error", text: "PIN ma mieć 4–8 cyfr (tylko cyfry)." });
       return;
     }
 
     setSaving(true);
+
     try {
       const unique = await nameIsUnique(name);
       if (!unique) {
-        setMsg({ type: "error", text: "Taki użytkownik już istnieje (po nazwie)." });
+        setMsg({
+          type: "error",
+          text: "Taki użytkownik już istnieje (po nazwie).",
+        });
         setSaving(false);
         return;
       }
@@ -87,12 +97,10 @@ export default function AddNewUsers() {
         name,
         role: "USER",
         isActive: true,
-
         pin: {
           hashMd5,
           salt,
         },
-
         audit: {
           createdAt: nowIso,
           createdBy: currentUserId,
@@ -104,64 +112,46 @@ export default function AddNewUsers() {
       await set(newUserRef, payload);
 
       setMsg({ type: "ok", text: `Dodano użytkownika: ${name}` });
-
       setForm({ name: "", pin: "" });
     } catch (err) {
       console.error(err);
-      setMsg({ type: "error", text: "Błąd zapisu do bazy (sprawdź konsolę)." });
+      setMsg({
+        type: "error",
+        text: "Błąd zapisu do bazy (sprawdź konsolę).",
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  const boxStyle = {
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 14,
-    background: "#fff",
-  };
-
-  const labelStyle = { display: "block", fontSize: 12, opacity: 0.8, marginBottom: 6 };
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #ccc",
-    outline: "none",
-  };
-
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: 18 }}>
-      <h2 style={{ marginBottom: 10 }}>Dodaj nowego użytkownika</h2>
-      <p style={{ marginTop: 0, opacity: 0.8 }}>
+    <div className={styles.wrapper}>
+      <Navbar/>
+      <h2 className={styles.title}>Dodaj nowego użytkownika</h2>
+
+      <p className={styles.subtitle}>
         Admin dodaje usera: <code>name</code> + <code>pin</code>. Zapis do{" "}
         <code>/users</code>.
       </p>
 
       {msg && (
         <div
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 14,
-            border: "1px solid",
-            borderColor: msg.type === "ok" ? "#86efac" : "#fca5a5",
-            background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2",
-          }}
+          className={`${styles.alert} ${
+            msg.type === "ok" ? styles.alertSuccess : styles.alertError
+          }`}
         >
           {msg.text}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <div style={boxStyle}>
-          <h3 style={{ marginTop: 0 }}>Dane użytkownika</h3>
+        <div className={styles.box}>
+          <h3 className={styles.sectionTitle}>Dane użytkownika</h3>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Imię i nazwisko *</label>
+          <div className={styles.field}>
+            <label className={styles.label}>Imię i nazwisko *</label>
             <input
-              style={inputStyle}
+              className={styles.input}
               value={form.name}
               onChange={(e) => setField("name", e.target.value)}
               placeholder="np. Jan Kowalski"
@@ -169,10 +159,10 @@ export default function AddNewUsers() {
             />
           </div>
 
-          <div style={{ marginBottom: 4 }}>
-            <label style={labelStyle}>PIN (4–8 cyfr) *</label>
+          <div className={styles.fieldSmallMargin}>
+            <label className={styles.label}>PIN (4–8 cyfr) *</label>
             <input
-              style={inputStyle}
+              className={styles.input}
               value={form.pin}
               onChange={(e) => setField("pin", e.target.value)}
               placeholder="np. 1234"
@@ -181,31 +171,29 @@ export default function AddNewUsers() {
             />
           </div>
 
-          <div style={{ marginTop: 10, opacity: 0.75, fontSize: 12 }}>
-            Zapis: <code>pin.hashMd5 = md5(salt + pin)</code>, <code>pin.salt</code> trzymamy jawnie.
+          <div className={styles.note}>
+            Zapis: <code>pin.hashMd5 = md5(salt + pin)</code>,{" "}
+            <code>pin.salt</code> trzymamy jawnie.
           </div>
         </div>
 
         <button
           type="submit"
           disabled={saving}
-          style={{
-            padding: "12px 16px",
-            borderRadius: 10,
-            border: "1px solid #111",
-            background: saving ? "#eee" : "#111",
-            color: saving ? "#111" : "#fff",
-            cursor: saving ? "not-allowed" : "pointer",
-            width: "100%",
-            fontWeight: 700,
-          }}
+          className={`${styles.submitButton} ${
+            saving ? styles.submitButtonDisabled : ""
+          }`}
         >
           {saving ? "Zapisuję..." : "Dodaj użytkownika"}
         </button>
       </form>
 
-      <div style={{ marginTop: 14, opacity: 0.75, fontSize: 12 }}>
-        Tip: jak chcesz “dezaktywuj”, robisz <code>update(ref(database, "users/&lt;userId&gt;"), &#123; isActive: false &#125;)</code>.
+      <div className={styles.tip}>
+        Tip: jak chcesz “dezaktywuj”, robisz{" "}
+        <code>
+          update(ref(database, "users/&lt;userId&gt;"), {"{ isActive: false }"})
+        </code>
+        .
       </div>
     </div>
   );
