@@ -166,16 +166,10 @@ export default function ShowAllReservations() {
 
         <td className={styles.td}>
           {safe(borrowedBy?.name, r.borrowedByUserId)}
-          <div className={styles.subText}>
-            userId: <code>{safe(r.borrowedByUserId)}</code>
-          </div>
         </td>
 
         <td className={styles.td}>
           {fmtPL(r.startAt)}
-          <div className={styles.subText}>
-            rentalId: <code>{safe(r.id)}</code>
-          </div>
         </td>
 
         <td className={styles.td}>
@@ -192,9 +186,6 @@ export default function ShowAllReservations() {
           ) : (
             <>
               {safe(returnedBy?.name, r.returnedByUserId)}
-              <div className={styles.subText}>
-                <code>{safe(r.returnedByUserId)}</code>
-              </div>
             </>
           )}
         </td>
@@ -246,16 +237,10 @@ export default function ShowAllReservations() {
 
         <td className={styles.td}>
           {safe(borrowedBy?.name, r.borrowedByUserId)}
-          <div className={styles.subText}>
-            userId: <code>{safe(r.borrowedByUserId)}</code>
-          </div>
         </td>
 
         <td className={styles.td}>
           {fmtPL(r.startAt)}
-          <div className={styles.subText}>
-            reservationId: <code>{safe(r.id)}</code>
-          </div>
         </td>
 
         <td className={styles.td}>{fmtPL(r.endAt)}</td>
@@ -293,9 +278,6 @@ export default function ShowAllReservations() {
     <div className={styles.wrapper}>
       <Navbar />
       <h2 className={styles.title}>Wypożyczenia i rezerwacje – aktualne i historia</h2>
-      <p className={styles.source}>
-        Źródło: <code>/rentals</code> (rekordy <code>NOW</code> i <code>RESERVATION</code>).
-      </p>
 
       {loading ? (
         <div className={styles.box}>Ładuję dane...</div>

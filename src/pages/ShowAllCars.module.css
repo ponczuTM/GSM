@@ -1,89 +1,284 @@
-.wrapper {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 18px;
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-hover: #f8fafc;
+  --c-border: #e2e8f0;
+  --c-border-light: #edf2f7;
+
+  --c-primary: #3b6ef8;
+  --c-primary-hover: #2555e0;
+  --c-primary-light: #ebf0fe;
+
+  --c-secondary: #64748b;
+  --c-secondary-hover: #475569;
+
+  --c-text: #1e293b;
+  --c-text-muted: #94a3b8;
+  --c-text-meta: #64748b;
+
+  --c-ok: #16a34a;
+  --c-ok-bg: #f0fdf4;
+  --c-ok-border: #bbf7d0;
+
+  --c-error: #dc2626;
+  --c-error-bg: #fef2f2;
+  --c-error-border: #fecaca;
+
+  --c-info-bg: #f8fafc;
+  --c-info-border: #dbe4f0;
+
+  --c-note-bg: #fefce8;
+  --c-note-border: #fde68a;
+  --c-note-text: #854d0e;
+
+  --c-table-head-bg: #f8fafc;
+  --c-table-row-hover: #f8fbff;
+  --c-table-row-archived: #fafafa;
+  --c-table-row-archived-text: #64748b;
+
+  --c-code-bg: #eef2ff;
+  --c-code-text: #3730a3;
+
+  --c-hidden-bg: #f1f5f9;
+  --c-hidden-text: #64748b;
+
+  --c-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --c-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
+/* === WRAPPER === */
+/* ta sama szerokość strony co w pozostałych komponentach */
+.wrapper {
+  min-height: 100vh;
+  background: var(--c-bg);
+  padding: 24px 32px 64px;
+  color: var(--c-text);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 16px 16px 48px;
+  }
+}
+
+/* === NAGŁÓWEK === */
 .title {
-  margin-bottom: 10px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin-top: 0;
-  opacity: 0.8;
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+  color: var(--c-text-meta);
+  line-height: 1.5;
 }
 
+.subtitle code {
+  font-size: 0.82rem;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* === INFO BOX === */
 .infoBox {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--c-shadow-sm);
+  color: var(--c-text-meta);
+  font-size: 0.92rem;
 }
 
+/* === WRAPPER TABELI === */
 .tableWrapper {
-  overflow-x: auto;
-  border: 1px solid #ddd;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  box-shadow: var(--c-shadow-sm);
+  margin-bottom: 20px;
 }
 
+/* scrollbar */
+.tableWrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* === TABELA === */
 .table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  min-width: 1600px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+  color: var(--c-text);
+  background: var(--c-surface);
 }
 
+/* === HEAD === */
 .tableHeadRow {
-  background: #fafafa;
+  background: var(--c-table-head-bg);
 }
 
 .th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--c-table-head-bg);
+  padding: 14px 12px;
   text-align: left;
-  padding: 10px 10px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-meta);
+  border-bottom: 1px solid var(--c-border);
   white-space: nowrap;
 }
 
-.td {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
+/* === CELL === */
+.td,
+.tdStrong {
+  padding: 14px 12px;
   vertical-align: top;
+  border-bottom: 1px solid var(--c-border-light);
+  line-height: 1.5;
+  background: transparent;
 }
 
 .tdStrong {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;
-  font-weight: 800;
+  font-weight: 700;
+  color: var(--c-text);
   white-space: nowrap;
 }
 
+/* === WIERSZE === */
 .activeRow {
-  background: #fff;
+  transition: background 0.15s ease;
 }
 
-.archivedRow {
-  background: #fcfcfc;
+.activeRow:hover td,
+.activeRow:hover .tdStrong {
+  background: var(--c-table-row-hover);
 }
 
+.archivedRow td,
+.archivedRow .tdStrong {
+  background: var(--c-table-row-archived);
+  color: var(--c-table-row-archived-text);
+}
+
+.archivedRow:hover td,
+.archivedRow:hover .tdStrong {
+  background: #f3f4f6;
+}
+
+/* === DODATKOWE TEKSTY === */
 .metaText {
-  opacity: 0.7;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--c-text-meta);
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .auditText {
-  font-size: 12px;
-  opacity: 0.85;
+  font-size: 0.74rem;
+  color: var(--c-text-meta);
+  line-height: 1.55;
+  word-break: break-word;
 }
 
+/* === PIN CODE === */
 .pinCode {
-  font-size: 12px;
+  display: inline-block;
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background: var(--c-code-bg);
+  color: var(--c-code-text);
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid #c7d2fe;
+  white-space: nowrap;
 }
 
 .hiddenText {
-  opacity: 0.6;
+  display: inline-block;
+  font-size: 0.78rem;
+  color: var(--c-hidden-text);
+  background: var(--c-hidden-bg);
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--c-border);
+  white-space: nowrap;
 }
 
+/* === NOTE === */
 .note {
-  margin-top: 14px;
-  opacity: 0.75;
-  font-size: 12px;
+  font-size: 0.82rem;
+  color: var(--c-note-text);
+  background: var(--c-note-bg);
+  border: 1px solid var(--c-note-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
+.note code {
+  font-size: 0.78rem;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--c-note-text);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* === RESPONSIVE DROBNE POPRAWKI === */
+@media (max-width: 900px) {
+  .title {
+    font-size: 1.35rem;
+  }
+
+  .subtitle {
+    font-size: 0.88rem;
+  }
+
+  .table {
+    font-size: 0.82rem;
+  }
+
+  .th {
+    padding: 12px 10px;
+  }
+
+  .td,
+  .tdStrong {
+    padding: 12px 10px;
+  }
 }

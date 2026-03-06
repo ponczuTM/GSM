@@ -349,7 +349,7 @@ export default function CarReservation() {
       return;
     }
     if (!/^[0-9]{4,8}$/.test(pin)) {
-      setLoginMsg({ type: "error", text: "PIN ma mieć 4–8 cyfr." });
+      setLoginMsg({ type: "error", text: "PIN ma mieć 4 cyfry." });
       return;
     }
 
@@ -832,7 +832,7 @@ export default function CarReservation() {
                   className={styles.input}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="4–8 cyfr"
+                  placeholder="4 cyfry"
                   inputMode="numeric"
                   autoComplete="off"
                   disabled={busy}
@@ -856,9 +856,6 @@ export default function CarReservation() {
           <div className={styles.loggedRow}>
             <div>
               <div className={styles.loggedTitle}>Zalogowano: {loggedUser.name}</div>
-              <div className={styles.loggedMeta}>
-                userId: <code>{loggedUser.id}</code>
-              </div>
             </div>
             <button onClick={handleLogout} className={styles.btnGhost}>
               Wyloguj
@@ -1005,11 +1002,6 @@ export default function CarReservation() {
               </div>
             </div>
           </div>
-
-          <div className={styles.note}>
-            Zwrot aktywnego NOW wymaga teraz potwierdzenia i opcjonalnego opisu. Rezerwacje są widoczne jako obecne,
-            przyszłe i przeszłe, a opis można edytować bezpośrednio na karcie.
-          </div>
         </div>
       )}
 
@@ -1129,16 +1121,8 @@ export default function CarReservation() {
               </table>
             </div>
           )}
-
-          <div className={styles.note}>
-            Realtime: po wypożyczeniu/rezerwacji wpis trafia do <code>/rentals</code>, a lista aut od razu się przelicza.
-          </div>
         </div>
       )}
-
-      <div className={styles.footerStats}>
-        Dane realtime: users={users.length}, cars={cars.length}, rentals={rentals.length}
-      </div>
     </div>
   );
 }

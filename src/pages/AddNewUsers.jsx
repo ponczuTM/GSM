@@ -128,12 +128,6 @@ export default function AddNewUsers() {
     <div className={styles.wrapper}>
       <Navbar/>
       <h2 className={styles.title}>Dodaj nowego użytkownika</h2>
-
-      <p className={styles.subtitle}>
-        Admin dodaje usera: <code>name</code> + <code>pin</code>. Zapis do{" "}
-        <code>/users</code>.
-      </p>
-
       {msg && (
         <div
           className={`${styles.alert} ${
@@ -170,11 +164,6 @@ export default function AddNewUsers() {
               autoComplete="off"
             />
           </div>
-
-          <div className={styles.note}>
-            Zapis: <code>pin.hashMd5 = md5(salt + pin)</code>,{" "}
-            <code>pin.salt</code> trzymamy jawnie.
-          </div>
         </div>
 
         <button
@@ -187,14 +176,6 @@ export default function AddNewUsers() {
           {saving ? "Zapisuję..." : "Dodaj użytkownika"}
         </button>
       </form>
-
-      <div className={styles.tip}>
-        Tip: jak chcesz “dezaktywuj”, robisz{" "}
-        <code>
-          update(ref(database, "users/&lt;userId&gt;"), {"{ isActive: false }"})
-        </code>
-        .
-      </div>
     </div>
   );
 }

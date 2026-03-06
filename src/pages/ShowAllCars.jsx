@@ -74,10 +74,6 @@ export default function ShowAllCars() {
       <Navbar/>
       <h2 className={styles.title}>Wszystkie samochody (testowo z RTDB)</h2>
 
-      <p className={styles.subtitle}>
-        Odczyt z <code>/cars</code>. Rekordy: {cars.length}
-      </p>
-
       {loading ? (
         <div className={styles.infoBox}>Ładuję dane...</div>
       ) : cars.length === 0 ? (
@@ -184,11 +180,6 @@ export default function ShowAllCars() {
           </table>
         </div>
       )}
-
-      <div className={styles.note}>
-        Uwaga: „Fleet Card PIN” powinien być chroniony regułami Firebase
-        (admin-only).
-      </div>
     </div>
   );
 }

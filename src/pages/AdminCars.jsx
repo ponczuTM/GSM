@@ -1235,7 +1235,7 @@ export default function AdminCars() {
       )}
 
       <div className={styles.footerNote}>
-        Realtime: users={users.length}, cars={cars.length}, rentals={rentals.length}
+        PODSUMOWANIE ILOŚCI DANYCH: users={users.length}, cars={cars.length}, rentals={rentals.length}
       </div>
     </div>
   );

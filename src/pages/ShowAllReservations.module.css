@@ -1,86 +1,283 @@
-.wrapper {
-  max-width: 1300px;
-  margin: 0 auto;
-  padding: 18px;
+/* =============================================
+   ShowAllReservations.module.css — Rezerwacje i wypożyczenia
+   Jasny motyw, spójny z panelem administracyjnym
+   ============================================= */
+
+/* === ZMIENNE === */
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-hover: #f8fafc;
+  --c-border: #e2e8f0;
+  --c-border-light: #edf2f7;
+
+  --c-primary: #3b6ef8;
+  --c-primary-hover: #2555e0;
+  --c-primary-light: #ebf0fe;
+
+  --c-secondary: #64748b;
+  --c-secondary-hover: #475569;
+
+  --c-text: #1e293b;
+  --c-text-muted: #94a3b8;
+  --c-text-meta: #64748b;
+
+  --c-info-bg: #f8fafc;
+  --c-info-border: #dbe4f0;
+
+  --c-in-progress-bg: #eff6ff;
+  --c-in-progress-text: #1d4ed8;
+  --c-in-progress-border: #bfdbfe;
+
+  --c-code-bg: #eef2ff;
+  --c-code-text: #3730a3;
+
+  --c-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --c-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
+/* === WRAPPER === */
+/* taka sama szerokość strony jak w pozostałych komponentach */
+.wrapper {
+  min-height: 100vh;
+  background: var(--c-bg);
+  padding: 24px 32px 64px;
+  color: var(--c-text);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 16px 16px 48px;
+  }
+}
+
+/* === NAGŁÓWEK === */
 .title {
-  margin-bottom: 10px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
 }
 
 .source {
-  margin-top: 0;
-  opacity: 0.8;
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+  color: var(--c-text-meta);
+  line-height: 1.5;
 }
 
+.source code {
+  font-size: 0.82rem;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* === BOX / SEKCJA === */
 .box {
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 16px;
-  background: #fff;
-  margin-bottom: 14px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--c-shadow-sm);
 }
 
 .sectionTitle {
-  margin-top: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-meta);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-border-light);
 }
 
+/* === STANY PUSTE === */
 .emptyText {
-  opacity: 0.8;
+  font-size: 0.9rem;
+  color: var(--c-text-muted);
+  padding: 6px 0 2px;
 }
 
+/* === WRAPPER TABELI === */
 .tableWrapper {
-  overflow-x: auto;
-  border: 1px solid #eee;
-  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  overflow: auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: var(--c-surface);
 }
 
+/* scrollbar */
+.tableWrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* === TABELA === */
 .table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  min-width: 1250px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+  color: var(--c-text);
+  background: var(--c-surface);
 }
 
 .tableHeadRow {
-  background: #fafafa;
+  background: #f8fafc;
 }
 
 .th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  padding: 14px 12px;
   text-align: left;
-  padding: 10px 10px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-meta);
+  border-bottom: 1px solid var(--c-border);
   white-space: nowrap;
 }
 
-.td {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
+.td,
+.tdStrong {
+  padding: 14px 12px;
   vertical-align: top;
+  border-bottom: 1px solid var(--c-border-light);
+  line-height: 1.5;
+  background: transparent;
 }
 
 .tdStrong {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;
-  font-weight: 900;
+  font-weight: 700;
+  color: var(--c-text);
   white-space: nowrap;
 }
 
-.subText {
-  opacity: 0.7;
-  font-size: 12px;
+.table tbody tr {
+  transition: background 0.15s ease;
 }
 
-.inProgress {
-  font-weight: 900;
+.table tbody tr:hover td,
+.table tbody tr:hover .tdStrong {
+  background: var(--c-surface-hover);
+}
+
+/* === TEKSTY POMOCNICZE === */
+.subText {
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--c-text-meta);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.subText code,
+.auditText code {
+  font-size: 0.74rem;
+  background: var(--c-code-bg);
+  color: var(--c-code-text);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .auditText {
-  font-size: 12px;
-  opacity: 0.85;
+  font-size: 0.74rem;
+  color: var(--c-text-meta);
+  line-height: 1.55;
+  word-break: break-word;
 }
 
+.auditText strong {
+  color: var(--c-text);
+  font-weight: 700;
+}
+
+/* === KOMENTARZ === */
+.commentBox {
+  max-width: 280px;
+  font-size: 0.84rem;
+  color: var(--c-text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* === STATUS W TRAKCIE === */
+.inProgress {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--c-in-progress-text);
+  background: var(--c-in-progress-bg);
+  border: 1px solid var(--c-in-progress-border);
+  border-radius: 999px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+/* === STOPKA === */
 .footerStats {
-  opacity: 0.65;
-  font-size: 12px;
+  margin-top: 28px;
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+  text-align: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--c-border-light);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  .title {
+    font-size: 1.35rem;
+  }
+
+  .source {
+    font-size: 0.88rem;
+  }
+
+  .table {
+    font-size: 0.82rem;
+  }
+
+  .th {
+    padding: 12px 10px;
+  }
+
+  .td,
+  .tdStrong {
+    padding: 12px 10px;
+  }
+
+  .commentBox {
+    max-width: 220px;
+  }
 }

@@ -1,45 +1,170 @@
+/* =============================================
+   CarReservation.module.css — Wypożyczenia i rezerwacje
+   Jasny motyw, spójny z panelem administracyjnym
+   ============================================= */
+
+/* === ZMIENNE === */
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-hover: #f8fafc;
+  --c-border: #e2e8f0;
+  --c-border-light: #edf2f7;
+
+  --c-primary: #3b6ef8;
+  --c-primary-hover: #2555e0;
+  --c-primary-light: #ebf0fe;
+
+  --c-secondary: #64748b;
+  --c-secondary-hover: #475569;
+
+  --c-danger: #dc2626;
+  --c-danger-hover: #b91c1c;
+  --c-danger-light: #fef2f2;
+  --c-danger-border: #fecaca;
+
+  --c-ok: #16a34a;
+  --c-ok-bg: #f0fdf4;
+  --c-ok-border: #bbf7d0;
+
+  --c-error: #dc2626;
+  --c-error-bg: #fef2f2;
+  --c-error-border: #fecaca;
+
+  --c-text: #1e293b;
+  --c-text-muted: #94a3b8;
+  --c-text-meta: #64748b;
+
+  --c-input-bg: #ffffff;
+  --c-input-border: #cbd5e1;
+  --c-input-focus: #3b6ef8;
+  --c-input-disabled-bg: #f1f5f9;
+
+  --c-note-bg: #fefce8;
+  --c-note-border: #fde68a;
+  --c-note-text: #854d0e;
+
+  --c-code-bg: #eef2ff;
+  --c-code-text: #3730a3;
+
+  --c-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --c-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* === WRAPPER === */
+/* ta sama szerokość strony co w pozostałych komponentach */
 .wrapper {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px;
-}
-
-.title {
-  margin-bottom: 10px;
-}
-
-.box {
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 16px;
-  background: #fff;
-  margin-bottom: 14px;
-}
-
-.sectionTitle {
-  margin-top: 0;
-}
-
-.label {
-  display: block;
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 6px;
-}
-
-.input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  outline: none;
+  min-height: 100vh;
+  background: var(--c-bg);
+  padding: 24px 32px 64px;
+  color: var(--c-text);
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 16px 16px 48px;
+  }
+}
+
+/* === NAGŁÓWEK === */
+.title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 20px;
+  letter-spacing: -0.02em;
+}
+
+/* === BOX / SEKCJA === */
+.box {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--c-shadow-sm);
+}
+
+.sectionTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-meta);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-border-light);
+}
+
+/* === LABEL === */
+.label {
+  display: inline-block;
+  margin-bottom: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.35;
+}
+
+/* === INPUT / SELECT / TEXTAREA === */
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--c-input-bg);
+  border: 1.5px solid var(--c-input-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--c-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input:hover {
+  border-color: #b6c2d2;
+}
+
+.input:focus {
+  border-color: var(--c-input-focus);
+  box-shadow: 0 0 0 3px rgba(59, 110, 248, 0.12);
+}
+
+.input:disabled {
+  background: var(--c-input-disabled-bg);
+  color: var(--c-text-muted);
+  cursor: not-allowed;
+  border-color: var(--c-border-light);
+}
+
+.input::placeholder {
+  color: var(--c-text-muted);
+}
+
+select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 34px;
+}
+
+textarea.input {
+  min-height: 96px;
+  line-height: 1.5;
+}
+
+/* === UKŁAD LOGOWANIA === */
 .loginGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(180px, 0.8fr) auto;
+  gap: 16px;
+  align-items: end;
 }
 
 .loginButtonWrap {
@@ -47,220 +172,421 @@
   align-items: end;
 }
 
-.loginMsg {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
+@media (max-width: 900px) {
+  .loginGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .loginButtonWrap {
+    display: block;
+  }
 }
 
+/* === KOMUNIKAT LOGOWANIA === */
+.loginMsg {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-hover);
+  color: var(--c-text-meta);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* === ZALOGOWANY UŻYTKOWNIK === */
 .loggedRow {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .loggedTitle {
-  font-weight: 900;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 4px;
 }
 
 .loggedMeta {
-  opacity: 0.7;
-  font-size: 12px;
+  font-size: 0.8rem;
+  color: var(--c-text-meta);
 }
 
+.loggedMeta code,
+.note code {
+  font-size: 0.78rem;
+  background: var(--c-code-bg);
+  color: var(--c-code-text);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* === DWIE KOLUMNY === */
 .twoCols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .twoCols {
+    grid-template-columns: 1fr;
+  }
 }
 
 .innerPanel {
-  border: 1px solid #eee;
-  border-radius: 10px;
-  padding: 12px;
+  background: #fbfcfe;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
 }
 
 .panelTitle {
-  font-weight: 900;
-  margin-bottom: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text-meta);
+  margin-bottom: 12px;
 }
 
-.muted {
-  opacity: 0.75;
-}
-
+/* === KARTY === */
 .cardsList {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .card {
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 10px;
-  background: #fff;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--c-shadow-sm);
 }
 
 .cardTitle {
-  font-weight: 900;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 8px;
 }
 
 .cardMeta {
-  opacity: 0.75;
-  font-size: 12px;
+  font-size: 0.82rem;
+  color: var(--c-text-meta);
+  line-height: 1.6;
 }
 
 .cardAction {
-  margin-top: 10px;
-}
-
-.note {
   margin-top: 12px;
-  opacity: 0.7;
-  font-size: 12px;
 }
 
+/* === TRYB WYBORU === */
 .modeRow {
   display: flex;
-  gap: 12px;
+  gap: 18px;
   flex-wrap: wrap;
   align-items: center;
 }
 
 .radioLabel {
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
   align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  color: var(--c-text);
 }
 
+.radioLabel:hover {
+  background: var(--c-surface-hover);
+  border-color: #b6c2d2;
+}
+
+.radioLabel input[type="radio"] {
+  margin: 0;
+  accent-color: var(--c-primary);
+}
+
+/* === GRID REZERWACJI === */
 .reservationGrid {
-  margin-top: 12px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+  align-items: end;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .reservationGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .gridFullNote {
   grid-column: 1 / -1;
-  opacity: 0.75;
-  font-size: 12px;
+  font-size: 0.82rem;
+  color: var(--c-text-meta);
+  background: #f8fafc;
+  border: 1px solid #dbe4f0;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  line-height: 1.5;
 }
 
+/* === PRZYCISKI === */
+.btnPrimary,
+.btnDanger,
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btnPrimary {
+  background: var(--c-primary);
+  color: #fff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(59, 110, 248, 0.25);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+  box-shadow: 0 3px 10px rgba(59, 110, 248, 0.35);
+  transform: translateY(-1px);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btnDanger {
+  background: var(--c-danger);
+  color: #fff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.22);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: var(--c-danger-hover);
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.28);
+  transform: translateY(-1px);
+}
+
+.btnDanger:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--c-secondary);
+  border: 1.5px solid var(--c-border);
+}
+
+.btnGhost:hover:not(:disabled) {
+  background: var(--c-surface-hover);
+  border-color: var(--c-secondary);
+  color: var(--c-text);
+}
+
+.btnDisabled,
+.btnPrimary:disabled,
+.btnDanger:disabled,
+.btnGhost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* === KOMUNIKAT AKCJI === */
 .actionMsg {
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0 0 20px;
   border: 1px solid;
 }
 
 .actionMsgOk {
-  border-color: #86efac;
-  background: #f0fdf4;
+  color: var(--c-ok);
+  background: var(--c-ok-bg);
+  border-color: var(--c-ok-border);
+}
+
+.actionMsgOk::before {
+  content: "✓";
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .actionMsgError {
-  border-color: #fca5a5;
-  background: #fef2f2;
+  color: var(--c-error);
+  background: var(--c-error-bg);
+  border-color: var(--c-error-border);
 }
 
+.actionMsgError::before {
+  content: "✕";
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* === PUSTY STAN === */
+.emptyText,
+.muted {
+  font-size: 0.875rem;
+  color: var(--c-text-muted);
+  padding: 8px 0;
+}
+
+.muted {
+  text-align: center;
+}
+
+/* === TABELA AUT === */
 .tableWrapper {
-  overflow-x: auto;
-  border: 1px solid #ddd;
-  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  overflow: auto;
+  background: var(--c-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.tableWrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
 }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+  color: var(--c-text);
+  background: var(--c-surface);
 }
 
 .tableHeadRow {
-  background: #fafafa;
+  background: #f8fafc;
 }
 
 .th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  padding: 14px 12px;
   text-align: left;
-  padding: 10px 10px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-meta);
+  border-bottom: 1px solid var(--c-border);
   white-space: nowrap;
 }
 
-.td {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;
+.td,
+.tdStrong {
+  padding: 14px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--c-border-light);
+  line-height: 1.5;
+  background: transparent;
 }
 
 .tdStrong {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;
-  font-weight: 900;
+  font-weight: 700;
+  color: var(--c-text);
   white-space: nowrap;
 }
 
-.emptyText {
-  opacity: 0.8;
+.table tbody tr {
+  transition: background 0.15s ease;
 }
 
-.footerStats {
-  opacity: 0.65;
-  font-size: 12px;
+.table tbody tr:hover td,
+.table tbody tr:hover .tdStrong {
+  background: var(--c-surface-hover);
 }
 
-.btnPrimary {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #111;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 800;
-  width: 100%;
-}
-
-.btnDanger {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #7f1d1d;
-  background: #7f1d1d;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 900;
-  width: 100%;
-}
-
-.btnGhost {
+/* === NOTE === */
+.note {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--c-note-text);
+  background: var(--c-note-bg);
+  border: 1px solid var(--c-note-border);
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #fff;
-  cursor: pointer;
-  font-weight: 800;
+  line-height: 1.6;
 }
 
-.btnDisabled {
-  background: #eee;
-  color: #111;
-  cursor: not-allowed;
+/* === STOPKA === */
+.footerStats {
+  margin-top: 28px;
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+  text-align: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--c-border-light);
 }
 
+/* === RESPONSIVE === */
 @media (max-width: 900px) {
-  .loginGrid,
-  .twoCols,
-  .reservationGrid {
-    grid-template-columns: 1fr;
+  .title {
+    font-size: 1.35rem;
   }
 
-  .loggedRow {
-    flex-direction: column;
-    align-items: flex-start;
+  .box {
+    padding: 16px 18px;
   }
 
-  .loginButtonWrap {
-    align-items: stretch;
+  .th {
+    padding: 12px 10px;
+  }
+
+  .td,
+  .tdStrong {
+    padding: 12px 10px;
   }
 }
