@@ -48,11 +48,12 @@ const PATH_LABELS_PL = {
 
   // === RENTALS (typowe) ===
   carId: "ID auta",
-  borrowedByUserId: "ID użytkownika",
+  borrowedByUserId: "ID użytkownika wypożyczającego",
   returnedByUserId: "ID użytkownika zwracającego",
   startAt: "Start",
   endAt: "Koniec",
   type: "Typ",
+  status: "Status",
 };
 
 const KEY_LABELS_PL = {
@@ -90,7 +91,7 @@ const KEY_LABELS_PL = {
   salt: "Sól (salt) PIN",
 
   carId: "ID auta",
-  borrowedByUserId: "ID użytkownika",
+  borrowedByUserId: "ID użytkownika wypożyczającego",
   returnedByUserId: "ID użytkownika zwracającego",
   startAt: "Start",
   endAt: "Koniec",
@@ -253,6 +254,93 @@ function isReadOnlyPath(entityType, path) {
   if (entityType === "rentals" && path === "carId") return true;
 
   return false;
+}
+
+/** =======================
+ *  SORTOWANIE / FILTROWANIE RENTALS
+ *  ======================= */
+const RENTAL_SORT_OPTIONS = [
+  { value: "startAt", label: "Data rozpoczęcia" },
+  { value: "endAt", label: "Data zakończenia" },
+  { value: "car.make", label: "Marka pojazdu" },
+  { value: "car.model", label: "Model pojazdu" },
+  { value: "car.plateNumber", label: "Numer rejestracyjny" },
+  { value: "borrowedUser.name", label: "Osoba wypożyczająca" },
+  { value: "returnedUser.name", label: "Osoba zwracająca" },
+  { value: "car.maintenance.lastOilServiceAt", label: "Data ostatniej wymiany oleju" },
+  { value: "car.maintenance.insuranceDueAt", label: "Data ważności ubezpieczenia" },
+  { value: "car.maintenance.inspectionDueAt", label: "Data ważności przeglądu" },
+  { value: "audit.createdAt", label: "Data utworzenia rekordu" },
+  { value: "audit.updatedAt", label: "Data aktualizacji rekordu" },
+];
+
+const RENTAL_DATE_SORT_KEYS = new Set([
+  "startAt",
+  "endAt",
+  "car.maintenance.lastOilServiceAt",
+  "car.maintenance.insuranceDueAt",
+  "car.maintenance.inspectionDueAt",
+  "audit.createdAt",
+  "audit.updatedAt",
+]);
+
+function getRentalSortValue(sortKey, rental, car, borrowedUser, returnedUser) {
+  switch (sortKey) {
+    case "startAt":
+      return rental?.startAt ?? null;
+    case "endAt":
+      return rental?.endAt ?? null;
+    case "car.make":
+      return car?.make ?? "";
+    case "car.model":
+      return car?.model ?? "";
+    case "car.plateNumber":
+      return car?.plateNumber ?? "";
+    case "borrowedUser.name":
+      return borrowedUser?.name ?? "";
+    case "returnedUser.name":
+      return returnedUser?.name ?? "";
+    case "car.maintenance.lastOilServiceAt":
+      return car?.maintenance?.lastOilServiceAt ?? null;
+    case "car.maintenance.insuranceDueAt":
+      return car?.maintenance?.insuranceDueAt ?? null;
+    case "car.maintenance.inspectionDueAt":
+      return car?.maintenance?.inspectionDueAt ?? null;
+    case "audit.createdAt":
+      return rental?.audit?.createdAt ?? null;
+    case "audit.updatedAt":
+      return rental?.audit?.updatedAt ?? null;
+    default:
+      return "";
+  }
+}
+
+function compareNullableValues(a, b, direction = "asc", isDate = false) {
+  const dir = direction === "desc" ? -1 : 1;
+
+  const emptyA = a === null || a === undefined || a === "";
+  const emptyB = b === null || b === undefined || b === "";
+
+  if (emptyA && emptyB) return 0;
+  if (emptyA) return 1;
+  if (emptyB) return -1;
+
+  if (isDate) {
+    const ta = new Date(a).getTime();
+    const tb = new Date(b).getTime();
+
+    const safeA = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY;
+    const safeB = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY;
+
+    if (safeA < safeB) return -1 * dir;
+    if (safeA > safeB) return 1 * dir;
+    return 0;
+  }
+
+  const sa = String(a).toLocaleLowerCase("pl-PL");
+  const sb = String(b).toLocaleLowerCase("pl-PL");
+
+  return sa.localeCompare(sb, "pl", { sensitivity: "base" }) * dir;
 }
 
 /** === Dynamic Editor (rekurencyjny) === **/
@@ -420,9 +508,7 @@ function ObjectNodeEditor({
   return (
     <div className={styles.nodeBox}>
       <div className={styles.nodeHeader}>
-        <div className={styles.nodeTitle}>
-          {label}
-        </div>
+        <div className={styles.nodeTitle}>{label}</div>
       </div>
 
       <div className={styles.nodeBody}>
@@ -468,6 +554,15 @@ export default function AdminCars() {
 
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  /** =======================
+   *  NOWE: FILTRY / SORT RENTALS
+   *  ======================= */
+  const [rentalFilterUserId, setRentalFilterUserId] = useState("");
+  const [rentalFilterCarId, setRentalFilterCarId] = useState("");
+  const [rentalSearchText, setRentalSearchText] = useState("");
+  const [rentalSortBy, setRentalSortBy] = useState("startAt");
+  const [rentalSortDir, setRentalSortDir] = useState("desc");
 
   // ===== realtime loads =====
   useEffect(() => {
@@ -537,6 +632,91 @@ export default function AdminCars() {
   const userOptions = useMemo(() => {
     return [...users].sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
   }, [users]);
+
+  const carOptions = useMemo(() => {
+    return [...cars].sort((a, b) => {
+      const labelA = `${a?.plateNumber || ""} ${a?.make || ""} ${a?.model || ""}`;
+      const labelB = `${b?.plateNumber || ""} ${b?.make || ""} ${b?.model || ""}`;
+      return labelA.localeCompare(labelB, "pl", { sensitivity: "base" });
+    });
+  }, [cars]);
+
+  const visibleRentals = useMemo(() => {
+    const q = rentalSearchText.trim().toLocaleLowerCase("pl-PL");
+
+    const filtered = rentals.filter((r) => {
+      const car = carsById.get(r?.carId);
+      const borrowedUser = usersById.get(r?.borrowedByUserId);
+      const returnedUser = usersById.get(r?.returnedByUserId);
+
+      if (rentalFilterUserId) {
+        const matchesUser =
+          r?.borrowedByUserId === rentalFilterUserId || r?.returnedByUserId === rentalFilterUserId;
+        if (!matchesUser) return false;
+      }
+
+      if (rentalFilterCarId && r?.carId !== rentalFilterCarId) {
+        return false;
+      }
+
+      if (q) {
+        const haystack = [
+          r?.id,
+          r?.type,
+          r?.status,
+          r?.carId,
+          r?.borrowedByUserId,
+          r?.returnedByUserId,
+          r?.startAt,
+          r?.endAt,
+          car?.plateNumber,
+          car?.make,
+          car?.model,
+          car?.maintenance?.lastOilServiceAt,
+          car?.maintenance?.insuranceDueAt,
+          car?.maintenance?.inspectionDueAt,
+          borrowedUser?.name,
+          returnedUser?.name,
+        ]
+          .map((v) => String(v ?? "").toLocaleLowerCase("pl-PL"))
+          .join(" ");
+
+        if (!haystack.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const carA = carsById.get(a?.carId);
+      const carB = carsById.get(b?.carId);
+      const borrowedA = usersById.get(a?.borrowedByUserId);
+      const borrowedB = usersById.get(b?.borrowedByUserId);
+      const returnedA = usersById.get(a?.returnedByUserId);
+      const returnedB = usersById.get(b?.returnedByUserId);
+
+      const valueA = getRentalSortValue(rentalSortBy, a, carA, borrowedA, returnedA);
+      const valueB = getRentalSortValue(rentalSortBy, b, carB, borrowedB, returnedB);
+
+      const isDate = RENTAL_DATE_SORT_KEYS.has(rentalSortBy);
+      const mainCmp = compareNullableValues(valueA, valueB, rentalSortDir, isDate);
+      if (mainCmp !== 0) return mainCmp;
+
+      // tie-breaker dla stabilniejszego sortowania
+      return compareNullableValues(a?.startAt, b?.startAt, "desc", true);
+    });
+
+    return sorted;
+  }, [
+    rentals,
+    carsById,
+    usersById,
+    rentalFilterUserId,
+    rentalFilterCarId,
+    rentalSearchText,
+    rentalSortBy,
+    rentalSortDir,
+  ]);
 
   function setMessage(type, text) {
     setMsg({ type, text });
@@ -693,6 +873,14 @@ export default function AdminCars() {
     fillQuickPin(plainPin);
   }
 
+  function resetRentalFiltersAndSort() {
+    setRentalFilterUserId("");
+    setRentalFilterCarId("");
+    setRentalSearchText("");
+    setRentalSortBy("startAt");
+    setRentalSortDir("desc");
+  }
+
   return (
     <div className={styles.wrapper}>
       <h2 className={styles.pageTitle}>Admin Panel</h2>
@@ -738,9 +926,7 @@ export default function AdminCars() {
                         className={listItemClass(selectedUserId === u.id)}
                       >
                         <div className={styles.itemTitle}>{safe(u.name)}</div>
-                        <div className={styles.itemMeta}>
-                          · aktywny: {String(!!u.isActive)} ·
-                        </div>
+                        <div className={styles.itemMeta}>· aktywny: {String(!!u.isActive)} ·</div>
                       </button>
                     ))}
                   </div>
@@ -754,6 +940,9 @@ export default function AdminCars() {
                       <div className={styles.actionsRow}>
                         <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
                           Zapisz USER (wszystkie pola)
+                        </button>
+                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnSecondary}>
+                          Szybka zmiana PIN
                         </button>
                       </div>
 
@@ -777,7 +966,7 @@ export default function AdminCars() {
 
                         <div className={styles.fieldRow}>
                           <div className={styles.fieldLabel}>
-                            <span>Nowy PIN (4 cyfry)</span>
+                            <span>Nowy PIN (4–8 cyfr)</span>
                           </div>
                           <div className={styles.fieldControl}>
                             <input
@@ -867,41 +1056,152 @@ export default function AdminCars() {
 
           {activeTab === "RENTALS" && (
             <div className={styles.box}>
-              <h3 className={styles.boxTitle}>RENTALS — edycja każdego pola</h3>
+              <h3 className={styles.boxTitle}>RENTALS — edycja każdego pola + filtrowanie i sortowanie</h3>
+
+              <div className={styles.box} style={{ marginBottom: 16 }}>
+                <h4 className={styles.boxTitle}>Filtry i sortowanie rentals</h4>
+
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldLabel}>
+                    <span>Filtruj po osobie</span>
+                  </div>
+                  <div className={styles.fieldControl}>
+                    <select
+                      className={styles.input}
+                      value={rentalFilterUserId}
+                      onChange={(e) => setRentalFilterUserId(e.target.value)}
+                    >
+                      <option value="">— wszyscy użytkownicy —</option>
+                      {userOptions.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {safe(u.name)} | id: ({u.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldLabel}>
+                    <span>Filtruj po pojeździe</span>
+                  </div>
+                  <div className={styles.fieldControl}>
+                    <select
+                      className={styles.input}
+                      value={rentalFilterCarId}
+                      onChange={(e) => setRentalFilterCarId(e.target.value)}
+                    >
+                      <option value="">— wszystkie pojazdy —</option>
+                      {carOptions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)} | id: ({c.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldLabel}>
+                    <span>Wyszukiwanie tekstowe</span>
+                  </div>
+                  <div className={styles.fieldControl}>
+                    <input
+                      className={styles.input}
+                      value={rentalSearchText}
+                      onChange={(e) => setRentalSearchText(e.target.value)}
+                      placeholder="np. Kowalski, WX12345, Toyota, ACTIVE..."
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldLabel}>
+                    <span>Sortuj po</span>
+                  </div>
+                  <div className={styles.fieldControl}>
+                    <select
+                      className={styles.input}
+                      value={rentalSortBy}
+                      onChange={(e) => setRentalSortBy(e.target.value)}
+                    >
+                      {RENTAL_SORT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <div className={styles.fieldLabel}>
+                    <span>Kierunek sortowania</span>
+                  </div>
+                  <div className={styles.fieldControl}>
+                    <select
+                      className={styles.input}
+                      value={rentalSortDir}
+                      onChange={(e) => setRentalSortDir(e.target.value)}
+                    >
+                      <option value="asc">Rosnąco</option>
+                      <option value="desc">Malejąco</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.actionsRow}>
+                  <button onClick={resetRentalFiltersAndSort} className={styles.btnSecondary}>
+                    Reset filtrów i sortowania
+                  </button>
+                </div>
+              </div>
 
               <div className={styles.gridRentals}>
                 <div className={styles.listCard}>
-                  <div className={styles.listHeader}>Lista rentals</div>
+                  <div className={styles.listHeader}>Lista rentals ({visibleRentals.length})</div>
                   <div className={styles.listBody}>
-                    {rentals.map((r) => {
-                      const car = carsById.get(r.carId);
-                      const borrowedUser = usersById.get(r.borrowedByUserId);
-                      const returnedUser = usersById.get(r.returnedByUserId);
-                      const type = (r.type || "").toUpperCase();
-                      const status = (r.status || "").toUpperCase();
-                      const activeLabel =
-                        status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
+                    {visibleRentals.length === 0 ? (
+                      <div className={styles.muted}>Brak wyników dla aktualnych filtrów.</div>
+                    ) : (
+                      visibleRentals.map((r) => {
+                        const car = carsById.get(r.carId);
+                        const borrowedUser = usersById.get(r.borrowedByUserId);
+                        const returnedUser = usersById.get(r.returnedByUserId);
+                        const type = (r.type || "").toUpperCase();
+                        const status = (r.status || "").toUpperCase();
+                        const activeLabel =
+                          status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
 
-                      return (
-                        <button
-                          key={r.id}
-                          onClick={() => selectRental(r.id)}
-                          className={listItemClass(selectedRentalId === r.id)}
-                        >
-                          <div className={styles.itemTitle}>
-                            [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)}
-                          </div>
-                          <div className={styles.itemMeta}>
-                            · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · koniec:{" "}
-                            {fmtPL(r.endAt)}
-                          </div>
-                          <div className={styles.itemMeta}>
-                            user: {safe(borrowedUser?.name, r.borrowedByUserId)}
-                            {r?.returnedByUserId ? ` · zwrócił: ${safe(returnedUser?.name, r.returnedByUserId)}` : ""}
-                          </div>
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => selectRental(r.id)}
+                            className={listItemClass(selectedRentalId === r.id)}
+                          >
+                            <div className={styles.itemTitle}>
+                              [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)} — {safe(car?.make)}{" "}
+                              {safe(car?.model)}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · koniec: {fmtPL(r.endAt)}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              user: {safe(borrowedUser?.name, r.borrowedByUserId)}
+                              {r?.returnedByUserId ? ` · zwrócił: ${safe(returnedUser?.name, r.returnedByUserId)}` : ""}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              olej: {fmtPL(car?.maintenance?.lastOilServiceAt)} · ubezpieczenie:{" "}
+                              {fmtPL(car?.maintenance?.insuranceDueAt)} · przegląd:{" "}
+                              {fmtPL(car?.maintenance?.inspectionDueAt)}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
