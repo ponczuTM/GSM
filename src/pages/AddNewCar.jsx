@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, set, push, get } from "../FirebaseConfig";
 import styles from "./AddNewCar.module.css";
-import Navbar from './Navbar';
+import Navbar from "./Navbar";
 
 // Pomocnicze: zamiana wartości z <input type="date"> na ISO (UTC)
 function dateToIsoOrNull(dateStr) {
@@ -18,6 +18,9 @@ export default function AddNewCar() {
     () => localStorage.getItem("userId") || "usr_admin_001",
     []
   );
+
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   const [form, setForm] = useState({
     plateNumber: "",
@@ -38,6 +41,24 @@ export default function AddNewCar() {
     hasExtinguisher: true,
     hasFirstAidKit: true,
     tiresDescription: "",
+    tiresDescription2: "",
+
+    // nowe pola opcjonalne
+    productionYear: "", // string
+    engineCapacity: "", // number/double
+    enginePowerKm: "", // number
+    aso: "", // string
+    kup: false, // boolean
+    assignedUser: "", // userId
+    registrationDocumentStatus: "", // string
+    hasGps: false, // boolean
+    repairNotes: "", // string
+    hasCamera: false, // boolean
+    hasSpareKey: false, // boolean
+    hasVirtualCard: false, // boolean
+    cleanliness: "", // string
+    hasSpare: false, // boolean
+    batteryYear: "", // number
 
     // U Ciebie jest "shellCardPinEncrypted".
     // Tu zapisuję jako string. W realu: szyfrowanie/sekret po stronie backendu/KMS.
@@ -49,6 +70,42 @@ export default function AddNewCar() {
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    async function loadUsers() {
+      setLoadingUsers(true);
+      try {
+        const snap = await get(ref(database, "users"));
+        if (!snap.exists()) {
+          setUsers([]);
+          return;
+        }
+
+        const usersObj = snap.val();
+        const usersArr = Object.entries(usersObj).map(([key, value]) => ({
+          id: value?.id || key,
+          ...value,
+        }));
+
+        usersArr.sort((a, b) => {
+          const aLabel =
+            a.displayName || a.fullName || a.name || a.email || a.id || "";
+          const bLabel =
+            b.displayName || b.fullName || b.name || b.email || b.id || "";
+          return aLabel.localeCompare(bLabel, "pl", { sensitivity: "base" });
+        });
+
+        setUsers(usersArr);
+      } catch (err) {
+        console.error("Błąd ładowania users:", err);
+        setUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+
+    loadUsers();
+  }, []);
 
   function setField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -109,6 +166,25 @@ export default function AddNewCar() {
         internalNumber: form.internalNumber.trim() || null,
         baseLocation: form.baseLocation.trim() || null,
 
+        productionYear: form.productionYear.trim() || null,
+        engineCapacity:
+          form.engineCapacity === "" ? null : Number(form.engineCapacity),
+        enginePowerKm:
+          form.enginePowerKm === "" ? null : Number(form.enginePowerKm),
+        aso: form.aso.trim() || null,
+        kup: !!form.kup,
+        assignedUser: form.assignedUser || null,
+        registrationDocumentStatus:
+          form.registrationDocumentStatus.trim() || null,
+        hasGps: !!form.hasGps,
+        repairNotes: form.repairNotes.trim() || null,
+        hasCamera: !!form.hasCamera,
+        hasSpareKey: !!form.hasSpareKey,
+        hasVirtualCard: !!form.hasVirtualCard,
+        cleanliness: form.cleanliness.trim() || null,
+        hasSpare: !!form.hasSpare,
+        batteryYear: form.batteryYear === "" ? null : Number(form.batteryYear),
+
         maintenance: {
           inspectionDueAt: dateToIsoOrNull(form.inspectionDueAt),
           insuranceDueAt: dateToIsoOrNull(form.insuranceDueAt),
@@ -126,6 +202,7 @@ export default function AddNewCar() {
           hasExtinguisher: !!form.hasExtinguisher,
           hasFirstAidKit: !!form.hasFirstAidKit,
           tiresDescription: form.tiresDescription.trim() || null,
+          tiresDescription2: form.tiresDescription2.trim() || null,
         },
 
         fleetCard: {
@@ -149,25 +226,49 @@ export default function AddNewCar() {
 
       setMsg({ type: "ok", text: `Dodano auto: ${payload.plateNumber}` });
 
-      // reset formularza (zostawiam domyślne checki)
-      setForm((prev) => ({
-        ...prev,
+      // reset formularza
+      setForm({
         plateNumber: "",
         make: "",
         model: "",
+
         vin: "",
         internalNumber: "",
         baseLocation: "",
+
         inspectionDueAt: "",
         insuranceDueAt: "",
         lastOilServiceAt: "",
         lastOilServiceMileage: "",
         currentMileage: "",
+
+        hasTriangle: true,
+        hasExtinguisher: true,
+        hasFirstAidKit: true,
         tiresDescription: "",
+        tiresDescription2: "",
+
+        productionYear: "",
+        engineCapacity: "",
+        enginePowerKm: "",
+        aso: "",
+        kup: false,
+        assignedUser: "",
+        registrationDocumentStatus: "",
+        hasGps: false,
+        repairNotes: "",
+        hasCamera: false,
+        hasSpareKey: false,
+        hasVirtualCard: false,
+        cleanliness: "",
+        hasSpare: false,
+        batteryYear: "",
+
         shellCardPinEncrypted: "",
+
         status: "AVAILABLE",
         isArchived: false,
-      }));
+      });
     } catch (err) {
       console.error(err);
       setMsg({
@@ -181,7 +282,7 @@ export default function AddNewCar() {
 
   return (
     <div className={styles.wrapper}>
-      <Navbar/>
+      <Navbar />
       <h2 className={styles.title}>Dodaj nowy samochód</h2>
 
       {msg && (
@@ -201,9 +302,7 @@ export default function AddNewCar() {
 
           <div className={styles.grid2}>
             <div>
-              <label className={styles.label}>
-                Tablica rejestracyjna *
-              </label>
+              <label className={styles.label}>Tablica rejestracyjna *</label>
               <input
                 className={styles.input}
                 value={form.plateNumber}
@@ -261,6 +360,105 @@ export default function AddNewCar() {
               />
             </div>
 
+            <div>
+              <label className={styles.label}>Numer wewnętrzny</label>
+              <input
+                className={styles.input}
+                value={form.internalNumber}
+                onChange={(e) => setField("internalNumber", e.target.value)}
+                placeholder="np. CAR-015"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Rok produkcji</label>
+              <input
+                className={styles.input}
+                value={form.productionYear}
+                onChange={(e) => setField("productionYear", e.target.value)}
+                placeholder="np. 2021"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Pojemność silnika</label>
+              <input
+                className={styles.input}
+                type="number"
+                step="0.1"
+                value={form.engineCapacity}
+                onChange={(e) => setField("engineCapacity", e.target.value)}
+                placeholder="np. 2.0"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Moc silnika (KM)</label>
+              <input
+                className={styles.input}
+                type="number"
+                value={form.enginePowerKm}
+                onChange={(e) => setField("enginePowerKm", e.target.value)}
+                placeholder="np. 150"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>ASO / serwis</label>
+              <input
+                className={styles.input}
+                value={form.aso}
+                onChange={(e) => setField("aso", e.target.value)}
+                placeholder="np. Toyota Wrocław"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Status dowodu rejestracyjnego</label>
+              <input
+                className={styles.input}
+                value={form.registrationDocumentStatus}
+                onChange={(e) =>
+                  setField("registrationDocumentStatus", e.target.value)
+                }
+                placeholder="np. ODEBRANY / W BIURZE / U KIEROWCY"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Przypisany użytkownik</label>
+              <select
+                className={styles.input}
+                value={form.assignedUser}
+                onChange={(e) => setField("assignedUser", e.target.value)}
+              >
+                <option value="">-- brak przypisania --</option>
+                {users.map((user) => {
+                  const label =
+                    user.displayName ||
+                    user.fullName ||
+                    user.name ||
+                    user.email ||
+                    user.id;
+
+                  return (
+                    <option key={user.id} value={user.id}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
+              {loadingUsers && (
+                <div className={styles.helperText}>Ładowanie listy użytkowników...</div>
+              )}
+            </div>
+
             <div className={styles.fullWidth}>
               <label className={styles.label}>
                 Lokalizacja bazowa (opcjonalnie)
@@ -302,9 +500,7 @@ export default function AddNewCar() {
             </div>
 
             <div>
-              <label className={styles.label}>
-                Olej – data ostatniego serwisu
-              </label>
+              <label className={styles.label}>Olej – data ostatniego serwisu</label>
               <input
                 className={styles.input}
                 type="date"
@@ -314,9 +510,7 @@ export default function AddNewCar() {
             </div>
 
             <div>
-              <label className={styles.label}>
-                Olej – przebieg przy serwisie
-              </label>
+              <label className={styles.label}>Olej – przebieg przy serwisie</label>
               <input
                 className={styles.input}
                 type="number"
@@ -330,9 +524,7 @@ export default function AddNewCar() {
             </div>
 
             <div>
-              <label className={styles.label}>
-                Aktualny przebieg (opcjonalnie)
-              </label>
+              <label className={styles.label}>Aktualny przebieg (opcjonalnie)</label>
               <input
                 className={styles.input}
                 type="number"
@@ -340,6 +532,29 @@ export default function AddNewCar() {
                 onChange={(e) => setField("currentMileage", e.target.value)}
                 placeholder="np. 150120"
                 min="0"
+              />
+            </div>
+
+            <div>
+              <label className={styles.label}>Rok akumulatora</label>
+              <input
+                className={styles.input}
+                type="number"
+                value={form.batteryYear}
+                onChange={(e) => setField("batteryYear", e.target.value)}
+                placeholder="np. 2024"
+                min="1900"
+              />
+            </div>
+
+            <div className={styles.fullWidth}>
+              <label className={styles.label}>Rzeczy do zrobienia / naprawy</label>
+              <input
+                className={styles.input}
+                value={form.repairNotes}
+                onChange={(e) => setField("repairNotes", e.target.value)}
+                placeholder="np. wymienić żarówkę, sprawdzić hamulce"
+                autoComplete="off"
               />
             </div>
           </div>
@@ -395,12 +610,118 @@ export default function AddNewCar() {
             </div>
 
             <div>
+              <label className={styles.label}>GPS</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.hasGps}
+                  onChange={(e) => setField("hasGps", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.hasGps ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Kamera</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.hasCamera}
+                  onChange={(e) => setField("hasCamera", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.hasCamera ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Dodatkowy klucz</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.hasSpareKey}
+                  onChange={(e) => setField("hasSpareKey", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.hasSpareKey ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Karta wirtualna</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.hasVirtualCard}
+                  onChange={(e) => setField("hasVirtualCard", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.hasVirtualCard ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Koło zapasowe / zapas</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.hasSpare}
+                  onChange={(e) => setField("hasSpare", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.hasSpare ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Na wykup (KUP)</label>
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={form.kup}
+                  onChange={(e) => setField("kup", e.target.checked)}
+                />
+                <span className={styles.checkboxText}>
+                  {form.kup ? "TAK" : "NIE"}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className={styles.label}>Stan czystości auta</label>
+              <input
+                className={styles.input}
+                value={form.cleanliness}
+                onChange={(e) => setField("cleanliness", e.target.value)}
+                placeholder="np. CZYSTE / DO UMYCIA / ŚREDNIO"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
               <label className={styles.label}>Opony/koła (opis)</label>
               <input
                 className={styles.input}
                 value={form.tiresDescription}
                 onChange={(e) => setField("tiresDescription", e.target.value)}
                 placeholder={'np. zimowe 16" stalowe'}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className={styles.fullWidth}>
+              <label className={styles.label}>Opony/koła (drugi komplet / drugi opis)</label>
+              <input
+                className={styles.input}
+                value={form.tiresDescription2}
+                onChange={(e) => setField("tiresDescription2", e.target.value)}
+                placeholder={'np. letnie 17" aluminiowe'}
                 autoComplete="off"
               />
             </div>

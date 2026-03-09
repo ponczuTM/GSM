@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, onValue } from "../FirebaseConfig";
 import styles from "./ShowAllCars.module.css";
-import Navbar from './Navbar';
+import Navbar from "./Navbar";
 
 function safe(v, fallback = "—") {
   if (v === null || v === undefined || v === "") return fallback;
@@ -21,9 +21,23 @@ function yesNo(v) {
   return v ? "TAK" : "NIE";
 }
 
+function userLabel(user) {
+  if (!user) return "—";
+  return (
+    user.displayName ||
+    user.fullName ||
+    user.name ||
+    user.email ||
+    user.id ||
+    "—"
+  );
+}
+
 export default function ShowAllCars() {
   const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [usersMap, setUsersMap] = useState({});
+  const [loadingCars, setLoadingCars] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   const currentUserRole = useMemo(
     () => localStorage.getItem("role") || "ADMIN",
@@ -34,14 +48,14 @@ export default function ShowAllCars() {
   useEffect(() => {
     const carsRef = ref(database, "cars");
 
-    const unsub = onValue(
+    const unsubCars = onValue(
       carsRef,
       (snap) => {
         const val = snap.val();
 
         if (!val) {
           setCars([]);
-          setLoading(false);
+          setLoadingCars(false);
           return;
         }
 
@@ -57,21 +71,56 @@ export default function ShowAllCars() {
         });
 
         setCars(arr);
-        setLoading(false);
+        setLoadingCars(false);
       },
       (err) => {
         console.error(err);
         setCars([]);
-        setLoading(false);
+        setLoadingCars(false);
       }
     );
 
-    return () => unsub();
+    return () => unsubCars();
   }, []);
+
+  useEffect(() => {
+    const usersRef = ref(database, "users");
+
+    const unsubUsers = onValue(
+      usersRef,
+      (snap) => {
+        const val = snap.val();
+
+        if (!val) {
+          setUsersMap({});
+          setLoadingUsers(false);
+          return;
+        }
+
+        const map = {};
+        Object.entries(val).forEach(([key, value]) => {
+          const id = value?.id || key;
+          map[id] = { id, ...value };
+        });
+
+        setUsersMap(map);
+        setLoadingUsers(false);
+      },
+      (err) => {
+        console.error(err);
+        setUsersMap({});
+        setLoadingUsers(false);
+      }
+    );
+
+    return () => unsubUsers();
+  }, []);
+
+  const loading = loadingCars || loadingUsers;
 
   return (
     <div className={styles.wrapper}>
-      <Navbar/>
+      <Navbar />
       <h2 className={styles.title}>Wszystkie samochody</h2>
 
       {loading ? (
@@ -84,16 +133,41 @@ export default function ShowAllCars() {
             <thead>
               <tr className={styles.tableHeadRow}>
                 <th className={styles.th}>Tablica</th>
-                <th className={styles.th}>Marka / Model</th>
+                <th className={styles.th}>Marka</th>
+                <th className={styles.th}>Model</th>
+                <th className={styles.th}>VIN</th>
+                <th className={styles.th}>Nr wewn.</th>
+                <th className={styles.th}>Rok prod.</th>
+                <th className={styles.th}>Poj. silnika</th>
+                <th className={styles.th}>Moc (KM)</th>
                 <th className={styles.th}>Status</th>
                 <th className={styles.th}>Baza</th>
+                <th className={styles.th}>ASO</th>
+                <th className={styles.th}>Na wykup</th>
+                <th className={styles.th}>Przypisany użytkownik</th>
+                <th className={styles.th}>Status dowodu rej.</th>
+
                 <th className={styles.th}>Przegląd</th>
                 <th className={styles.th}>Ubezpieczenie</th>
                 <th className={styles.th}>Olej (data)</th>
                 <th className={styles.th}>Olej (km)</th>
                 <th className={styles.th}>Akt. km</th>
-                <th className={styles.th}>Wyposażenie</th>
-                <th className={styles.th}>Opony</th>
+                <th className={styles.th}>Rok akumulatora</th>
+
+                <th className={styles.th}>Trójkąt</th>
+                <th className={styles.th}>Gaśnica</th>
+                <th className={styles.th}>Apteczka</th>
+                <th className={styles.th}>GPS</th>
+                <th className={styles.th}>Kamera</th>
+                <th className={styles.th}>Dodatkowy klucz</th>
+                <th className={styles.th}>Karta wirtualna</th>
+                <th className={styles.th}>Koło zapasowe</th>
+
+                <th className={styles.th}>Stan czystości</th>
+                <th className={styles.th}>Opony / komplet 1</th>
+                <th className={styles.th}>Opony / komplet 2</th>
+                <th className={styles.th}>Naprawy / notatki</th>
+
                 <th className={styles.th}>Usterki</th>
                 <th className={styles.th}>Archiw.</th>
                 <th className={styles.th}>Audit</th>
@@ -111,39 +185,67 @@ export default function ShowAllCars() {
                 );
 
                 const fleetPin = c?.fleetCard?.shellCardPinEncrypted || null;
+                const assignedUserObj = c?.assignedUser
+                  ? usersMap[c.assignedUser]
+                  : null;
 
                 return (
                   <tr
                     key={c.id}
-                    className={c.isArchived ? styles.archivedRow : styles.activeRow}
+                    className={
+                      c.isArchived ? styles.archivedRow : styles.activeRow
+                    }
                   >
                     <td className={styles.tdStrong}>{safe(c.plateNumber)}</td>
-
-                    <td className={styles.td}>
-                      {safe(c.make)} / {safe(c.model)}
-                      <div className={styles.metaText}>
-                      {/* VIN: {safe(c.vin)} {" · "} Wewn.: {safe(c.internalNumber)} */}
-                      VIN: {safe(c.vin)} {" · "}
-                      </div>
-                    </td>
-
+                    <td className={styles.td}>{safe(c.make)}</td>
+                    <td className={styles.td}>{safe(c.model)}</td>
+                    <td className={styles.td}>{safe(c.vin)}</td>
+                    <td className={styles.td}>{safe(c.internalNumber)}</td>
+                    <td className={styles.td}>{safe(c.productionYear)}</td>
+                    <td className={styles.td}>{safe(c.engineCapacity)}</td>
+                    <td className={styles.td}>{safe(c.enginePowerKm)}</td>
                     <td className={styles.td}>{safe(c.status)}</td>
                     <td className={styles.td}>{safe(c.baseLocation)}</td>
+                    <td className={styles.td}>{safe(c.aso)}</td>
+                    <td className={styles.td}>{yesNo(c.kup)}</td>
+
+                    <td className={styles.td}>
+                      {c?.assignedUser ? (
+                        <>
+                          {userLabel(assignedUserObj)}
+                          <div className={styles.metaText}>
+                            userId: {safe(c.assignedUser)}
+                          </div>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    <td className={styles.td}>
+                      {safe(c.registrationDocumentStatus)}
+                    </td>
+
                     <td className={styles.td}>{fmtDate(m.inspectionDueAt)}</td>
                     <td className={styles.td}>{fmtDate(m.insuranceDueAt)}</td>
                     <td className={styles.td}>{fmtDate(m.lastOilServiceAt)}</td>
                     <td className={styles.td}>{safe(m.lastOilServiceMileage)}</td>
                     <td className={styles.td}>{safe(m.currentMileage)}</td>
+                    <td className={styles.td}>{safe(c.batteryYear)}</td>
 
-                    <td className={styles.td}>
-                      Trójkąt: {yesNo(e.hasTriangle)}
-                      <br />
-                      Gaśnica: {yesNo(e.hasExtinguisher)}
-                      <br />
-                      Apteczka: {yesNo(e.hasFirstAidKit)}
-                    </td>
+                    <td className={styles.td}>{yesNo(e.hasTriangle)}</td>
+                    <td className={styles.td}>{yesNo(e.hasExtinguisher)}</td>
+                    <td className={styles.td}>{yesNo(e.hasFirstAidKit)}</td>
+                    <td className={styles.td}>{yesNo(c.hasGps)}</td>
+                    <td className={styles.td}>{yesNo(c.hasCamera)}</td>
+                    <td className={styles.td}>{yesNo(c.hasSpareKey)}</td>
+                    <td className={styles.td}>{yesNo(c.hasVirtualCard)}</td>
+                    <td className={styles.td}>{yesNo(c.hasSpare)}</td>
 
+                    <td className={styles.td}>{safe(c.cleanliness)}</td>
                     <td className={styles.td}>{safe(e.tiresDescription)}</td>
+                    <td className={styles.td}>{safe(e.tiresDescription2)}</td>
+                    <td className={styles.td}>{safe(c.repairNotes)}</td>
 
                     <td className={styles.td}>
                       Wszystkie: {faults.length}
