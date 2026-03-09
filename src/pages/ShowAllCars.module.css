@@ -282,3 +282,119 @@
     padding: 12px 10px;
   }
 }
+
+/* === FILTRY (PRZYCISKI SAMOCHODÓW) === */
+.filterBar {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--c-shadow-sm);
+}
+
+.filterTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text-meta);
+  margin-bottom: 16px;
+}
+
+.buttonsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Styl bazowy przycisku */
+.filterBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  min-width: 140px;
+}
+
+.filterBtn:hover {
+  border-color: var(--c-primary);
+  background: var(--c-surface-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--c-shadow-sm);
+}
+
+/* Styl aktywnego przycisku */
+.btnActive {
+  background: var(--c-primary-light) !important;
+  border-color: var(--c-primary) !important;
+  box-shadow: 0 0 0 1px var(--c-primary);
+}
+
+.btnMainText {
+  display: block;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--c-text);
+  margin-bottom: 2px;
+}
+
+/* Zmiana koloru tekstu gdy aktywny */
+.btnActive .btnMainText {
+  color: var(--c-primary);
+}
+
+.btnSubText {
+  display: block;
+  font-size: 0.74rem;
+  font-family: ui-monospace, monospace;
+  color: var(--c-text-meta);
+  background: var(--c-bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* Przycisk czyszczenia */
+.clearBtn {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px dashed var(--c-error-border);
+  color: var(--c-error);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.clearBtn:hover {
+  background: var(--c-error-bg);
+  border-style: solid;
+  border-color: var(--c-error);
+}
+
+/* RWD dla przycisków */
+@media (max-width: 600px) {
+  .buttonsContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .filterBtn {
+    min-width: unset;
+  }
+  
+  .clearBtn {
+    grid-column: span 2;
+    margin-left: 0;
+    margin-top: 8px;
+  }
+}

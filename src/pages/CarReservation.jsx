@@ -801,7 +801,7 @@ export default function CarReservation() {
   return (
     <div className={styles.wrapper}>
       {/* <Navbar/> */}
-      <h2 className={styles.title}>Wypożyczenie / Rezerwacja + moje auta</h2>
+      <h2 className={styles.title}>Wypożyczenie / Rezerwacja</h2>
 
       <div className={styles.box}>
         <h3 className={styles.sectionTitle}>1) Wybór użytkownika + PIN</h3>
@@ -1049,7 +1049,7 @@ export default function CarReservation() {
               </div>
 
               <div className={styles.gridFullNote}>
-                Uwaga! Pamiętaj e nikt inny nie wypożyczy wybranego auta w tym terminie.
+                Uwaga! Pamiętaj że nikt inny nie wypożyczy wybranego auta w tym terminie.
               </div>
             </div>
           )}
