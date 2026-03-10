@@ -422,6 +422,21 @@ function isCarStatusPath(entityType, path) {
 }
 
 /** =======================
+ *  POLA LICZBOWE
+ *  ======================= */
+const NUMBER_PATHS = new Set([
+  "batteryYear",
+  "engineCapacity",
+  "enginePowerKm",
+  "maintenance.currentMileage",
+  "maintenance.lastOilServiceMileage",
+]);
+
+function isNumberPath(path) {
+  return !!path && NUMBER_PATHS.has(path);
+}
+
+/** =======================
  *  SORTOWANIE / FILTROWANIE RENTALS
  *  ======================= */
 const RENTAL_SORT_OPTIONS = [
@@ -529,6 +544,7 @@ function DynamicEditor({
   const isReadOnly = isReadOnlyPath(entityType, currentPath);
   const isUserRef = isUserReferencePath(entityType, currentPath);
   const isCarStatus = isCarStatusPath(entityType, currentPath);
+  const isNumberField = isNumberPath(currentPath);
   const isDateField = (t === "string" || t === "undefined") && isDatePath(currentPath);
   const effectiveDisabled = disabled || isReadOnly;
 
@@ -539,7 +555,7 @@ function DynamicEditor({
           <span>{showLabel}</span>
           {currentPath && (
             <span className={styles.fieldMeta}>
-              {isDateField ? "datetime" : t}
+              {isDateField ? "datetime" : isNumberField ? "number" : t}
               {isReadOnly ? " · readonly" : ""}
             </span>
           )}
@@ -578,23 +594,7 @@ function DynamicEditor({
                 </option>
               ))}
             </select>
-          ) : t === "boolean" || t === "undefined" ? (
-            <select
-              className={styles.input}
-              disabled={effectiveDisabled}
-              value={value === true ? "true" : value === false ? "false" : ""}
-              onChange={(e) => {
-                let v;
-                if (e.target.value === "") v = undefined;
-                else v = e.target.value === "true";
-                onRootChange(setAtPath(rootValue, currentPath, v));
-              }}
-            >
-              <option value="">— puste —</option>
-              <option value="true">tak</option>
-              <option value="false">nie</option>
-            </select>
-          ) : t === "number" ? (
+          ) : isNumberField || t === "number" ? (
             <input
               className={styles.input}
               disabled={effectiveDisabled}
@@ -611,6 +611,22 @@ function DynamicEditor({
                 );
               }}
             />
+          ) : t === "boolean" || t === "undefined" ? (
+            <select
+              className={styles.input}
+              disabled={effectiveDisabled}
+              value={value === true ? "true" : value === false ? "false" : ""}
+              onChange={(e) => {
+                let v;
+                if (e.target.value === "") v = undefined;
+                else v = e.target.value === "true";
+                onRootChange(setAtPath(rootValue, currentPath, v));
+              }}
+            >
+              <option value="">— puste —</option>
+              <option value="true">tak</option>
+              <option value="false">nie</option>
+            </select>
           ) : isDateField ? (
             <>
               <input
