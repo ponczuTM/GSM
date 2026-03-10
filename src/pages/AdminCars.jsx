@@ -17,15 +17,30 @@ const PATH_LABELS_PL = {
   "audit.updatedBy": "Zaktualizował (ID)",
 
   // === CARS ===
+  aso: "ASO",
+  assignedUser: "Przypisany użytkownik",
   baseLocation: "Baza / lokalizacja",
+  batteryYear: "Rok akumulatora",
+  cleanliness: "Czystość",
+  engineCapacity: "Pojemność silnika (cm³)",
+  enginePowerKm: "Moc silnika (KM)",
   equipment: "Wyposażenie",
   "equipment.hasExtinguisher": "Gaśnica",
   "equipment.hasFirstAidKit": "Apteczka",
   "equipment.hasTriangle": "Trójkąt ostrzegawczy",
+  "equipment.tiresDescription": "Opis opon",
+  "equipment.tiresDescription2": "Opis opon 2",
   fleetCard: "Karta flotowa",
   "fleetCard.shellCardPinEncrypted": "PIN karty Shell (zaszyfrowany)",
+  hasCamera: "Kamera",
+  hasGps: "GPS",
+  hasSpare: "Koło zapasowe",
+  hasSpareKey: "Zapasowy kluczyk",
+  hasVirtualCard: "Karta wirtualna",
   id: "ID",
+  internalNumber: "Numer wewnętrzny",
   isArchived: "Zarchiwizowane",
+  kup: "KUP",
   maintenance: "Serwis / utrzymanie",
   "maintenance.currentMileage": "Aktualny przebieg (km)",
   "maintenance.inspectionDueAt": "Przegląd ważny do",
@@ -35,6 +50,9 @@ const PATH_LABELS_PL = {
   make: "Marka",
   model: "Model",
   plateNumber: "Numer rejestracyjny",
+  productionYear: "Rok produkcji",
+  registrationDocumentStatus: "Status dowodu rejestracyjnego",
+  repairNotes: "Uwagi serwisowe / naprawy",
   status: "Status",
   vin: "VIN",
 
@@ -56,20 +74,36 @@ const PATH_LABELS_PL = {
 };
 
 const KEY_LABELS_PL = {
-  // fallback po samym kluczu (gdy nie ma dopasowania po pełnej ścieżce)
+  // fallback po samym kluczu
   createdAt: "Utworzono (data)",
   createdBy: "Utworzył (ID)",
   updatedAt: "Zaktualizowano (data)",
   updatedBy: "Zaktualizował (ID)",
 
+  // cars
+  aso: "ASO",
+  assignedUser: "Przypisany użytkownik",
   baseLocation: "Baza / lokalizacja",
+  batteryYear: "Rok akumulatora",
+  cleanliness: "Czystość",
+  engineCapacity: "Pojemność silnika (cm³)",
+  enginePowerKm: "Moc silnika (KM)",
   equipment: "Wyposażenie",
   hasExtinguisher: "Gaśnica",
   hasFirstAidKit: "Apteczka",
   hasTriangle: "Trójkąt ostrzegawczy",
+  tiresDescription: "Opis opon",
+  tiresDescription2: "Opis opon 2",
   fleetCard: "Karta flotowa",
   shellCardPinEncrypted: "PIN karty Shell (zaszyfrowany)",
+  hasCamera: "Kamera",
+  hasGps: "GPS",
+  hasSpare: "Koło zapasowe",
+  hasSpareKey: "Zapasowy kluczyk",
+  hasVirtualCard: "Karta wirtualna",
+  internalNumber: "Numer wewnętrzny",
   isArchived: "Zarchiwizowane",
+  kup: "KUP",
   maintenance: "Serwis / utrzymanie",
   currentMileage: "Aktualny przebieg (km)",
   inspectionDueAt: "Przegląd ważny do",
@@ -79,9 +113,13 @@ const KEY_LABELS_PL = {
   make: "Marka",
   model: "Model",
   plateNumber: "Numer rejestracyjny",
+  productionYear: "Rok produkcji",
+  registrationDocumentStatus: "Status dowodu rejestracyjnego",
+  repairNotes: "Uwagi serwisowe / naprawy",
   status: "Status",
   vin: "VIN",
 
+  // users
   name: "Imię i nazwisko",
   role: "Rola",
   isActive: "Aktywny",
@@ -89,6 +127,7 @@ const KEY_LABELS_PL = {
   hashMd5: "Hash PIN (MD5)",
   salt: "Sól (salt) PIN",
 
+  // rentals
   carId: "ID auta",
   borrowedByUserId: "ID użytkownika wypożyczającego",
   returnedByUserId: "ID użytkownika zwracającego",
@@ -98,23 +137,66 @@ const KEY_LABELS_PL = {
   id: "ID",
 };
 
+const CAR_STATUS_OPTIONS = ["AVAILABLE", "IN_SERVICE", "DAMAGED", "UNFIT"];
+
+/** =======================
+ *  PEŁNY SZABLON AUTA
+ *  ======================= */
+const EMPTY_CAR_TEMPLATE = {
+  aso: "",
+  assignedUser: "",
+  baseLocation: "",
+  batteryYear: undefined,
+  cleanliness: "",
+  engineCapacity: undefined,
+  enginePowerKm: undefined,
+  equipment: {
+    hasExtinguisher: undefined,
+    hasFirstAidKit: undefined,
+    hasTriangle: undefined,
+    tiresDescription: "",
+    tiresDescription2: "",
+  },
+  fleetCard: {
+    shellCardPinEncrypted: "",
+  },
+  hasCamera: undefined,
+  hasGps: undefined,
+  hasSpare: undefined,
+  hasSpareKey: undefined,
+  hasVirtualCard: undefined,
+  id: "",
+  internalNumber: "",
+  isArchived: undefined,
+  kup: undefined,
+  maintenance: {
+    currentMileage: undefined,
+    inspectionDueAt: "",
+    insuranceDueAt: "",
+    lastOilServiceAt: "",
+    lastOilServiceMileage: undefined,
+  },
+  make: "",
+  model: "",
+  plateNumber: "",
+  productionYear: "",
+  registrationDocumentStatus: "",
+  repairNotes: "",
+  status: "",
+  vin: "",
+};
+
 function translateLabelPL(path, rawLabel) {
-  // label typu "[0]" zostawiamy
   if (rawLabel && /^\[\d+\]$/.test(rawLabel)) return rawLabel;
 
-  // 1) pełna ścieżka (najbardziej precyzyjna)
   if (path && PATH_LABELS_PL[path]) return PATH_LABELS_PL[path];
-
-  // 2) sam label (czasem label==klucz)
   if (rawLabel && KEY_LABELS_PL[rawLabel]) return KEY_LABELS_PL[rawLabel];
 
-  // 3) ostatni segment ścieżki
   if (path) {
     const last = path.split(".").slice(-1)[0];
     if (KEY_LABELS_PL[last]) return KEY_LABELS_PL[last];
   }
 
-  // 4) fallback
   return rawLabel || (path ? path.split(".").slice(-1)[0] : "Pole");
 }
 
@@ -126,9 +208,11 @@ function safe(v, fallback = "—") {
 function fmtPL(iso) {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("pl-PL");
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return safe(iso);
+    return d.toLocaleString("pl-PL");
   } catch {
-    return "—";
+    return safe(iso);
   }
 }
 
@@ -138,6 +222,39 @@ function deepClone(obj) {
 
 function isPlainObject(v) {
   return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+/** =======================
+ *  MERGE DEFAULTÓW
+ *  ======================= */
+function mergeWithDefaults(defaultValue, actualValue) {
+  if (Array.isArray(defaultValue)) {
+    return Array.isArray(actualValue) ? actualValue : deepClone(defaultValue);
+  }
+
+  if (isPlainObject(defaultValue)) {
+    const out = {};
+
+    const actualObj = isPlainObject(actualValue) ? actualValue : {};
+    const keys = new Set([...Object.keys(defaultValue), ...Object.keys(actualObj)]);
+
+    for (const key of keys) {
+      if (key in defaultValue) {
+        out[key] = mergeWithDefaults(defaultValue[key], actualObj[key]);
+      } else {
+        out[key] = actualObj[key];
+      }
+    }
+
+    return out;
+  }
+
+  if (actualValue === undefined) return defaultValue;
+  return actualValue;
+}
+
+function buildCarDraft(car) {
+  return mergeWithDefaults(EMPTY_CAR_TEMPLATE, car || {});
 }
 
 function randomSalt(len = 10) {
@@ -192,11 +309,12 @@ function setAtPath(root, path, value) {
 
 function coercePrimitive(type, raw) {
   if (type === "number") {
-    if (raw === "" || raw === null || raw === undefined) return 0;
+    if (raw === "" || raw === null || raw === undefined) return undefined;
     const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
+    return Number.isFinite(n) ? n : undefined;
   }
   if (type === "boolean") {
+    if (raw === "" || raw === null || raw === undefined) return undefined;
     return !!raw;
   }
   if (type === "null") return null;
@@ -204,20 +322,64 @@ function coercePrimitive(type, raw) {
 }
 
 /** =======================
+ *  DATY / CZAS
+ *  ======================= */
+function isIsoDateString(value) {
+  if (typeof value !== "string") return false;
+  const s = value.trim();
+  if (!s) return false;
+
+  const isoRegex =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
+
+  const localRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
+  if (!isoRegex.test(s) && !localRegex.test(s)) return false;
+
+  const d = new Date(s);
+  return !Number.isNaN(d.getTime());
+}
+
+function isDatePath(path) {
+  if (!path) return false;
+  const last = path.split(".").slice(-1)[0];
+  return (
+    last.endsWith("At") ||
+    last.endsWith("DueAt") ||
+    last === "startAt" ||
+    last === "endAt"
+  );
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toISOString();
+}
+
+/** =======================
  *  UKRYWANIE AUDYTU / PÓL
  *  ======================= */
 const HIDDEN_KEYS = new Set(["audit", "createdAt", "createdBy", "updatedAt", "updatedBy"]);
 
-// ukrywa:
-// - całe drzewo audit (audit oraz audit.*)
-// - oraz każdy klucz createdAt/createdBy/updatedAt/updatedBy gdziekolwiek się pojawi
 function isHiddenPath(path) {
   if (!path) return false;
 
   const parts = String(path).split(".");
-  // audit lub cokolwiek pod audit
   if (parts[0] === "audit") return true;
-  // dowolny segment z listy ukrytych
   return parts.some((p) => HIDDEN_KEYS.has(p));
 }
 
@@ -230,29 +392,33 @@ function isIdPath(path) {
 /** =======================
  *  REGUŁY EDYCJI
  *  ======================= */
-
 function isUserReferencePath(entityType, path) {
   if (!path) return false;
 
-  // tylko dla RENTALS
-  if (entityType !== "rentals") return false;
+  if (entityType === "rentals") {
+    return path === "borrowedByUserId" || path === "returnedByUserId";
+  }
 
-  return path === "borrowedByUserId" || path === "returnedByUserId";
+  if (entityType === "cars") {
+    return path === "assignedUser";
+  }
+
+  return false;
 }
 
 function isReadOnlyPath(entityType, path) {
   if (!path) return false;
 
-  // własne id zawsze readonly
   if (isIdPath(path)) return true;
 
-  // users -> pin.salt i pin.hashMd5 readonly
   if (entityType === "users" && (path === "pin.salt" || path === "pin.hashMd5")) return true;
-
-  // rentals -> carId readonly
   if (entityType === "rentals" && path === "carId") return true;
 
   return false;
+}
+
+function isCarStatusPath(entityType, path) {
+  return entityType === "cars" && path === "status";
 }
 
 /** =======================
@@ -352,7 +518,6 @@ function DynamicEditor({
   userOptions = [],
   onRootChange,
 }) {
-  // nic z audytu i nic z created*/updated* nie renderujemy
   if (isHiddenPath(currentPath)) return null;
 
   const value = getAtPath(rootValue, currentPath);
@@ -363,9 +528,10 @@ function DynamicEditor({
 
   const isReadOnly = isReadOnlyPath(entityType, currentPath);
   const isUserRef = isUserReferencePath(entityType, currentPath);
+  const isCarStatus = isCarStatusPath(entityType, currentPath);
+  const isDateField = (t === "string" || t === "undefined") && isDatePath(currentPath);
   const effectiveDisabled = disabled || isReadOnly;
 
-  // PRIMITIVES
   if (t === "string" || t === "number" || t === "boolean" || t === "null" || t === "undefined") {
     return (
       <div className={styles.fieldRow}>
@@ -373,7 +539,7 @@ function DynamicEditor({
           <span>{showLabel}</span>
           {currentPath && (
             <span className={styles.fieldMeta}>
-              {t}
+              {isDateField ? "datetime" : t}
               {isReadOnly ? " · readonly" : ""}
             </span>
           )}
@@ -396,16 +562,35 @@ function DynamicEditor({
                 </option>
               ))}
             </select>
-          ) : t === "boolean" ? (
+          ) : isCarStatus ? (
             <select
               className={styles.input}
               disabled={effectiveDisabled}
-              value={value ? "true" : "false"}
+              value={value ?? ""}
               onChange={(e) => {
-                const v = e.target.value === "true";
+                onRootChange(setAtPath(rootValue, currentPath, e.target.value));
+              }}
+            >
+              <option value="">— wybierz status —</option>
+              {CAR_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          ) : t === "boolean" || t === "undefined" ? (
+            <select
+              className={styles.input}
+              disabled={effectiveDisabled}
+              value={value === true ? "true" : value === false ? "false" : ""}
+              onChange={(e) => {
+                let v;
+                if (e.target.value === "") v = undefined;
+                else v = e.target.value === "true";
                 onRootChange(setAtPath(rootValue, currentPath, v));
               }}
             >
+              <option value="">— puste —</option>
               <option value="true">tak</option>
               <option value="false">nie</option>
             </select>
@@ -414,11 +599,33 @@ function DynamicEditor({
               className={styles.input}
               disabled={effectiveDisabled}
               type="number"
-              value={Number.isFinite(value) ? value : 0}
+              value={value ?? ""}
               onChange={(e) => {
-                onRootChange(setAtPath(rootValue, currentPath, coercePrimitive("number", e.target.value)));
+                const raw = e.target.value;
+                onRootChange(
+                  setAtPath(
+                    rootValue,
+                    currentPath,
+                    raw === "" ? undefined : coercePrimitive("number", raw)
+                  )
+                );
               }}
             />
+          ) : isDateField ? (
+            <>
+              <input
+                className={styles.input}
+                disabled={effectiveDisabled}
+                type="datetime-local"
+                value={isIsoDateString(value) ? toDateTimeLocalValue(value) : ""}
+                onChange={(e) => {
+                  onRootChange(setAtPath(rootValue, currentPath, fromDateTimeLocalValue(e.target.value)));
+                }}
+              />
+              <div className={styles.fieldMeta} style={{ marginTop: 6 }}>
+                {value ? `Podgląd: ${fmtPL(value)}` : "Brak daty"}
+              </div>
+            </>
           ) : (
             <input
               className={styles.input}
@@ -436,7 +643,6 @@ function DynamicEditor({
     );
   }
 
-  // ARRAY
   if (t === "array") {
     const arr = Array.isArray(value) ? value : [];
 
@@ -471,7 +677,6 @@ function DynamicEditor({
     );
   }
 
-  // OBJECT
   const obj = isPlainObject(value) ? value : {};
 
   return (
@@ -543,19 +748,17 @@ export default function AdminCars() {
   const [selectedCarId, setSelectedCarId] = useState("");
   const [selectedRentalId, setSelectedRentalId] = useState("");
 
-  // drafty do edycji
   const [draftUser, setDraftUser] = useState(null);
   const [draftCar, setDraftCar] = useState(null);
   const [draftRental, setDraftRental] = useState(null);
 
-  // NOWE: jawny PIN wpisywany przez admina tylko w UI
   const [userPlainPin, setUserPlainPin] = useState("");
 
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
   /** =======================
-   *  NOWE: FILTRY / SORT RENTALS
+   *  FILTRY / SORT RENTALS
    *  ======================= */
   const [rentalFilterUserId, setRentalFilterUserId] = useState("");
   const [rentalFilterCarId, setRentalFilterCarId] = useState("");
@@ -563,14 +766,13 @@ export default function AdminCars() {
   const [rentalSortBy, setRentalSortBy] = useState("startAt");
   const [rentalSortDir, setRentalSortDir] = useState("desc");
 
-  // ===== realtime loads =====
   useEffect(() => {
     const unsubUsers = onValue(
       ref(database, "users"),
       (snap) => {
         const val = snap.val();
         const arr = val ? Object.values(val) : [];
-        arr.sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+        arr.sort((a, b) => (a?.name || "").localeCompare(b?.name || "", "pl", { sensitivity: "base" }));
         setUsers(arr);
       },
       console.error
@@ -581,7 +783,9 @@ export default function AdminCars() {
       (snap) => {
         const val = snap.val();
         const arr = val ? Object.values(val) : [];
-        arr.sort((a, b) => (a?.plateNumber || "").localeCompare(b?.plateNumber || ""));
+        arr.sort((a, b) =>
+          (a?.plateNumber || "").localeCompare(b?.plateNumber || "", "pl", { sensitivity: "base" })
+        );
         setCars(arr);
       },
       console.error
@@ -629,7 +833,7 @@ export default function AdminCars() {
   }, [rentals]);
 
   const userOptions = useMemo(() => {
-    return [...users].sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+    return [...users].sort((a, b) => (a?.name || "").localeCompare(b?.name || "", "pl", { sensitivity: "base" }));
   }, [users]);
 
   const carOptions = useMemo(() => {
@@ -701,7 +905,6 @@ export default function AdminCars() {
       const mainCmp = compareNullableValues(valueA, valueB, rentalSortDir, isDate);
       if (mainCmp !== 0) return mainCmp;
 
-      // tie-breaker dla stabilniejszego sortowania
       return compareNullableValues(a?.startAt, b?.startAt, "desc", true);
     });
 
@@ -721,7 +924,6 @@ export default function AdminCars() {
     setMsg({ type, text });
   }
 
-  // ===== selection handlers =====
   function selectUser(id) {
     setSelectedUserId(id);
     setSelectedCarId("");
@@ -748,7 +950,7 @@ export default function AdminCars() {
     const c = carsById.get(id);
     if (!c) return;
 
-    setDraftCar(deepClone(c));
+    setDraftCar(buildCarDraft(c));
     setMsg(null);
   }
 
@@ -775,7 +977,6 @@ export default function AdminCars() {
     return isActive ? `${styles.listItemBtn} ${styles.listItemBtnActive}` : styles.listItemBtn;
   }
 
-  // ===== SAVE helpers =====
   async function saveWhole(kind) {
     let id = "";
     let obj = null;
@@ -841,7 +1042,7 @@ export default function AdminCars() {
         setDraftUser(next);
         setUserPlainPin("");
       }
-      if (kind === "cars") setDraftCar(next);
+      if (kind === "cars") setDraftCar(buildCarDraft(next));
       if (kind === "rentals") setDraftRental(next);
     } catch (e) {
       console.error(e);
@@ -884,6 +1085,7 @@ export default function AdminCars() {
     <div className={styles.wrapper}>
       <Navbar />
       <h2 className={styles.pageTitle}>Admin Panel</h2>
+
       {msg && (
         <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
           {msg.text}
@@ -898,7 +1100,7 @@ export default function AdminCars() {
             <h3 className={styles.boxTitle}>Dane</h3>
             <div className={styles.tabsRow}>
               <button onClick={() => setActiveTab("USERS")} className={tabClass(activeTab === "USERS")}>
-                Uytkownicy ({users.length})
+                Użytkownicy ({users.length})
               </button>
               <button onClick={() => setActiveTab("CARS")} className={tabClass(activeTab === "CARS")}>
                 Samochody ({cars.length})
@@ -938,6 +1140,10 @@ export default function AdminCars() {
                       <div className={styles.actionsRow}>
                         <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
                           Zapisz USER (wszystkie pola)
+                        </button>
+
+                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnSecondary}>
+                          Szybka zmiana PIN
                         </button>
                       </div>
 
@@ -1002,23 +1208,38 @@ export default function AdminCars() {
                 <div className={styles.listCard}>
                   <div className={styles.listHeader}>Lista cars</div>
                   <div className={styles.listBody}>
-                    {cars.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => selectCar(c.id)}
-                        className={listItemClass(selectedCarId === c.id)}
-                      >
-                        <div className={styles.itemTitle}>
-                          {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}
-                        </div>
-                        <div className={styles.itemMeta}>
-                          id: {c.id} · status: {safe(c.status)} · zarchiwizowane: {String(!!c.isArchived)}
-                        </div>
-                        <div className={styles.itemMeta}>
-                          fleetCard.shellCardPinEncrypted: <code>{safe(c?.fleetCard?.shellCardPinEncrypted)}</code>
-                        </div>
-                      </button>
-                    ))}
+                    {cars.map((c) => {
+                      const assignedUser = usersById.get(c?.assignedUser);
+
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => selectCar(c.id)}
+                          className={listItemClass(selectedCarId === c.id)}
+                        >
+                          <div className={styles.itemTitle}>
+                            {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}
+                          </div>
+
+                          <div className={styles.itemMeta}>
+                            id: {c.id} · status: {safe(c.status)} · zarchiwizowane: {String(!!c.isArchived)}
+                          </div>
+
+                          <div className={styles.itemMeta}>
+                            przypisany użytkownik: {safe(assignedUser?.name, c?.assignedUser || "—")}
+                          </div>
+
+                          <div className={styles.itemMeta}>
+                            przegląd: {fmtPL(c?.maintenance?.inspectionDueAt)} · ubezpieczenie:{" "}
+                            {fmtPL(c?.maintenance?.insuranceDueAt)}
+                          </div>
+
+                          <div className={styles.itemMeta}>
+                            fleetCard.shellCardPinEncrypted: <code>{safe(c?.fleetCard?.shellCardPinEncrypted)}</code>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1202,7 +1423,7 @@ export default function AdminCars() {
 
                 <div>
                   {!selectedRentalId || !draftRental ? (
-                    <div className={styles.muted}>Wybierz wypozyczenie/rezerwacje z listy.</div>
+                    <div className={styles.muted}>Wybierz wypożyczenie / rezerwację z listy.</div>
                   ) : (
                     <>
                       <div className={styles.actionsRow}>
