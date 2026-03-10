@@ -16,6 +16,7 @@ import Navbar from "./Navbar";
  */
 
 const STATUS_ALLOWED = "AVAILABLE";
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function isoNow() {
   return new Date().toISOString();
@@ -336,6 +337,47 @@ export default function CarReservation() {
     return grouped;
   }, [rentals, loggedUser]);
 
+  // Pokazujemy wszystkie rezerwacje, których endAt NIE jest starsze niż 24h wstecz.
+  // To obejmuje: przyszłe, aktualne i niedawno zakończone.
+  const allFutureReservations = useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - ONE_DAY_MS;
+
+    return rentals
+      .filter((r) => {
+        if (!r) return false;
+        if ((r.type || "").toUpperCase() !== "RESERVATION") return false;
+        if (!r.endAt) return false;
+
+        const endTs = new Date(r.endAt).getTime();
+        if (Number.isNaN(endTs)) return false;
+
+        return endTs >= cutoff;
+      })
+      .sort((a, b) => {
+        const bucketA = getReservationBucket(a, now);
+        const bucketB = getReservationBucket(b, now);
+
+        const bucketOrder = {
+          CURRENT: 0,
+          FUTURE: 1,
+          PAST: 2,
+          UNKNOWN: 3,
+        };
+
+        const orderA = bucketOrder[bucketA] ?? 99;
+        const orderB = bucketOrder[bucketB] ?? 99;
+
+        if (orderA !== orderB) return orderA - orderB;
+
+        if (bucketA === "PAST" && bucketB === "PAST") {
+          return new Date(b.endAt || 0).getTime() - new Date(a.endAt || 0).getTime();
+        }
+
+        return new Date(a.startAt || 0).getTime() - new Date(b.startAt || 0).getTime();
+      });
+  }, [rentals]);
+
   async function handleLogin(e) {
     e.preventDefault();
     setLoginMsg(null);
@@ -645,7 +687,11 @@ export default function CarReservation() {
         return;
       }
       const fresh = snap.val();
-      if (!fresh || (fresh.status || "").toUpperCase() !== "ACTIVE" || (fresh.endAt !== null && fresh.endAt !== undefined)) {
+      if (
+        !fresh ||
+        (fresh.status || "").toUpperCase() !== "ACTIVE" ||
+        (fresh.endAt !== null && fresh.endAt !== undefined)
+      ) {
         setActionMsg({ type: "error", text: "Ktoś już zakończył to wypożyczenie." });
         setBusy(false);
         return;
@@ -1123,6 +1169,55 @@ export default function CarReservation() {
           )}
         </div>
       )}
+
+      <div className={styles.box}>
+        <h3 className={styles.sectionTitle}>
+          Wszystkie przyszłe i niedawne rezerwacje: {allFutureReservations.length}
+        </h3>
+
+        {allFutureReservations.length === 0 ? (
+          <div className={styles.emptyText}>
+            Brak przyszłych ani niedawno zakończonych rezerwacji.
+          </div>
+        ) : (
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr className={styles.tableHeadRow}>
+                  <th className={styles.th}>Rejestracja</th>
+                  <th className={styles.th}>Marka</th>
+                  <th className={styles.th}>Model</th>
+                  <th className={styles.th}>Start</th>
+                  <th className={styles.th}>Koniec</th>
+                  <th className={styles.th}>Komentarz</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allFutureReservations.map((r) => {
+                  const car = carsById.get(r.carId);
+
+                  return (
+                    <tr key={r.id}>
+                      <td className={styles.tdStrong}>
+                        {safe(car?.plateNumber, r.carId)}
+                      </td>
+                      <td className={styles.td}>{safe(car?.make)}</td>
+                      <td className={styles.td}>{safe(car?.model)}</td>
+                      <td className={styles.td}>{fmtPL(r.startAt)}</td>
+                      <td className={styles.td}>{fmtPL(r.endAt)}</td>
+                      <td className={styles.td}>
+                        <div style={{ whiteSpace: "pre-wrap" }}>
+                          {safe(r.description, "—")}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
