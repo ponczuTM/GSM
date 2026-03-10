@@ -13,7 +13,8 @@ import AddNewCarFromCSV from "./pages/AddNewCarFromCSV";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<CleaningForm />} />
+      {/* <Route path="/" element={<CleaningForm />} /> */}
+      <Route path="/" element={<CarReservation />} />
       <Route path="/adminadmin" element={<Admin />} />
       <Route path="/addnewcar" element={<AddNewCar />} />
       <Route path="/addnewusers" element={<AddNewUsers />} />
