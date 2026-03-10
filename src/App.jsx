@@ -8,6 +8,7 @@ import AddNewUsers from "./pages/AddNewUsers";
 import CarReservation from "./pages/CarReservation";
 import ShowAllReservations from "./pages/ShowAllReservations";
 import AdminCars from "./pages/AdminCars";
+import AddNewCarFromCSV from "./pages/AddNewCarFromCSV";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/showallreservations" element={<ShowAllReservations />} />
       <Route path="/carreservation" element={<CarReservation />} />
       <Route path="/admincars" element={<AdminCars />} />
+      <Route path="/addnewcarfromcsv" element={<AddNewCarFromCSV />} />
       
     </Routes>
   );
