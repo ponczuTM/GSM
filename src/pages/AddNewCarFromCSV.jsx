@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { database, ref, get, push, set } from "../FirebaseConfig";
 import styles from "./AddNewCar.module.css";
 import Navbar from "./Navbar";
+import useRequireSuperAdmin from "./useRequireSuperAdmin";
 
 const DEFAULT_STATUS = "AVAILABLE";
 
@@ -1006,6 +1007,8 @@ export default function AddNewCarFromCSV() {
       setImporting(false);
     }
   }
+
+  useRequireSuperAdmin();
 
   return (
     <div className={styles.wrapper}>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, onValue } from "../FirebaseConfig";
 import styles from "./ShowAllReservations.module.css";
 import Navbar from "./Navbar";
+import useRequireSuperAdmin from "./useRequireSuperAdmin";
 
 function safe(v, fallback = "—") {
   if (v === null || v === undefined || v === "") return fallback;
@@ -149,6 +150,8 @@ export default function ShowAllReservations() {
     list.sort((a, b) => String(b?.endAt || "").localeCompare(String(a?.endAt || "")));
     return list;
   }, [onlyReservations]);
+
+  useRequireSuperAdmin();
 
   function renderNowRow(r) {
     const car = carsById.get(r.carId);

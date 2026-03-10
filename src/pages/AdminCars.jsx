@@ -138,6 +138,7 @@ const KEY_LABELS_PL = {
 };
 
 const CAR_STATUS_OPTIONS = ["AVAILABLE", "IN_SERVICE", "DAMAGED", "UNFIT"];
+const SUPER_ADMIN_PASSWORD_HASH = "5d086c10cb91a2c0aae950c626bec39d";
 
 /** =======================
  *  PEŁNY SZABLON AUTA
@@ -774,6 +775,19 @@ export default function AdminCars() {
   const [busy, setBusy] = useState(false);
 
   /** =======================
+   *  BLOKADA HASŁEM
+   *  ======================= */
+  const [superAdminLoggedIn, setSuperAdminLoggedIn] = useState(() => {
+    try {
+      return localStorage.getItem("superAdminLoggedIn") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [superAdminPassword, setSuperAdminPassword] = useState("");
+  const [superAdminError, setSuperAdminError] = useState("");
+
+  /** =======================
    *  FILTRY / SORT RENTALS
    *  ======================= */
   const [rentalFilterUserId, setRentalFilterUserId] = useState("");
@@ -940,6 +954,23 @@ export default function AdminCars() {
     setMsg({ type, text });
   }
 
+  function handleSuperAdminLogin(e) {
+    e.preventDefault();
+
+    const normalized = String(superAdminPassword || "");
+    const hash = md5(normalized);
+
+    if (hash === SUPER_ADMIN_PASSWORD_HASH) {
+      localStorage.setItem("superAdminLoggedIn", "true");
+      setSuperAdminLoggedIn(true);
+      setSuperAdminPassword("");
+      setSuperAdminError("");
+      return;
+    }
+
+    setSuperAdminError("Nieprawidłowe hasło.");
+  }
+
   function selectUser(id) {
     setSelectedUserId(id);
     setSelectedCarId("");
@@ -1098,378 +1129,407 @@ export default function AdminCars() {
   }
 
   return (
-    <div className={styles.wrapper}>
-      <Navbar />
-      <h2 className={styles.pageTitle}>Admin Panel</h2>
+    <>
+      {!superAdminLoggedIn && (
+        <div className={styles.superAdminOverlay}>
+          <form className={styles.superAdminLoginBox} onSubmit={handleSuperAdminLogin}>
+            <h2 className={styles.superAdminTitle}>Dostęp zablokowany</h2>
+            <p className={styles.superAdminText}>Wpisz hasło, aby wejść do panelu admina.</p>
 
-      {msg && (
-        <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
-          {msg.text}
+            <input
+              className={styles.superAdminInput}
+              type="password"
+              value={superAdminPassword}
+              onChange={(e) => {
+                setSuperAdminPassword(e.target.value);
+                if (superAdminError) setSuperAdminError("");
+              }}
+              placeholder="Hasło"
+              autoFocus
+            />
+
+            {superAdminError && <div className={styles.superAdminError}>{superAdminError}</div>}
+
+            <button type="submit" className={styles.superAdminButton}>
+              Zaloguj
+            </button>
+          </form>
         </div>
       )}
 
-      {loading ? (
-        <div className={styles.box}>Ładuję dane...</div>
-      ) : (
-        <>
-          <div className={styles.box}>
-            <h3 className={styles.boxTitle}>Dane</h3>
-            <div className={styles.tabsRow}>
-              <button onClick={() => setActiveTab("USERS")} className={tabClass(activeTab === "USERS")}>
-                Użytkownicy ({users.length})
-              </button>
-              <button onClick={() => setActiveTab("CARS")} className={tabClass(activeTab === "CARS")}>
-                Samochody ({cars.length})
-              </button>
-              <button onClick={() => setActiveTab("RENTALS")} className={tabClass(activeTab === "RENTALS")}>
-                Wypożyczenia ({rentals.length})
-              </button>
-            </div>
+      <div className={styles.wrapper}>
+        <Navbar />
+        <h2 className={styles.pageTitle}>Admin Panel</h2>
+
+        {msg && (
+          <div className={`${styles.message} ${msg.type === "ok" ? styles.messageOk : styles.messageError}`}>
+            {msg.text}
           </div>
+        )}
 
-          {activeTab === "USERS" && (
+        {loading ? (
+          <div className={styles.box}>Ładuję dane...</div>
+        ) : (
+          <>
             <div className={styles.box}>
-              <h3 className={styles.boxTitle}>USERS — edycja każdego pola</h3>
-
-              <div className={styles.gridUsers}>
-                <div className={styles.listCard}>
-                  <div className={styles.listHeader}>Lista users</div>
-                  <div className={styles.listBody}>
-                    {users.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => selectUser(u.id)}
-                        className={listItemClass(selectedUserId === u.id)}
-                      >
-                        <div className={styles.itemTitle}>{safe(u.name)}</div>
-                        <div className={styles.itemMeta}>· aktywny: {String(!!u.isActive)} ·</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  {!selectedUserId || !draftUser ? (
-                    <div className={styles.muted}>Wybierz użytkownika z listy.</div>
-                  ) : (
-                    <>
-                      <div className={styles.actionsRow}>
-                        <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
-                          Zapisz USER (wszystkie pola)
-                        </button>
-
-                        <button onClick={resetPinQuick} disabled={busy} className={styles.btnSecondary}>
-                          Szybka zmiana PIN
-                        </button>
-                      </div>
-
-                      <div className={styles.box} style={{ marginTop: 12 }}>
-                        <h4 className={styles.boxTitle}>Zmiana PIN użytkownika</h4>
-
-                        <div className={styles.fieldRow}>
-                          <div className={styles.fieldLabel}>
-                            <span>Aktualny hash PIN (MD5)</span>
-                            <span className={styles.fieldMeta}>readonly</span>
-                          </div>
-                          <div className={styles.fieldControl}>
-                            <input
-                              className={styles.input}
-                              value={draftUser?.pin?.hashMd5 || ""}
-                              disabled
-                              readOnly
-                            />
-                          </div>
-                        </div>
-
-                        <div className={styles.fieldRow}>
-                          <div className={styles.fieldLabel}>
-                            <span>Nowy PIN (4–8 cyfr)</span>
-                          </div>
-                          <div className={styles.fieldControl}>
-                            <input
-                              className={styles.input}
-                              type="password"
-                              value={userPlainPin}
-                              onChange={(e) => setUserPlainPin(e.target.value)}
-                              placeholder="np. 1234"
-                              inputMode="numeric"
-                              autoComplete="off"
-                              disabled={busy}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <DynamicEditor
-                        rootValue={draftUser}
-                        currentPath=""
-                        label="Użytkownik"
-                        disabled={busy}
-                        entityType="users"
-                        userOptions={userOptions}
-                        onRootChange={setDraftUser}
-                      />
-                    </>
-                  )}
-                </div>
+              <h3 className={styles.boxTitle}>Dane</h3>
+              <div className={styles.tabsRow}>
+                <button onClick={() => setActiveTab("USERS")} className={tabClass(activeTab === "USERS")}>
+                  Użytkownicy ({users.length})
+                </button>
+                <button onClick={() => setActiveTab("CARS")} className={tabClass(activeTab === "CARS")}>
+                  Samochody ({cars.length})
+                </button>
+                <button onClick={() => setActiveTab("RENTALS")} className={tabClass(activeTab === "RENTALS")}>
+                  Wypożyczenia ({rentals.length})
+                </button>
               </div>
             </div>
-          )}
 
-          {activeTab === "CARS" && (
-            <div className={styles.box}>
-              <h3 className={styles.boxTitle}>CARS — edycja każdego pola</h3>
+            {activeTab === "USERS" && (
+              <div className={styles.box}>
+                <h3 className={styles.boxTitle}>USERS — edycja każdego pola</h3>
 
-              <div className={styles.gridCars}>
-                <div className={styles.listCard}>
-                  <div className={styles.listHeader}>Lista cars</div>
-                  <div className={styles.listBody}>
-                    {cars.map((c) => {
-                      const assignedUser = usersById.get(c?.assignedUser);
-
-                      return (
+                <div className={styles.gridUsers}>
+                  <div className={styles.listCard}>
+                    <div className={styles.listHeader}>Lista users</div>
+                    <div className={styles.listBody}>
+                      {users.map((u) => (
                         <button
-                          key={c.id}
-                          onClick={() => selectCar(c.id)}
-                          className={listItemClass(selectedCarId === c.id)}
+                          key={u.id}
+                          onClick={() => selectUser(u.id)}
+                          className={listItemClass(selectedUserId === u.id)}
                         >
-                          <div className={styles.itemTitle}>
-                            {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}
-                          </div>
-
-                          <div className={styles.itemMeta}>
-                            id: {c.id} · status: {safe(c.status)} · zarchiwizowane: {String(!!c.isArchived)}
-                          </div>
-
-                          <div className={styles.itemMeta}>
-                            przypisany użytkownik: {safe(assignedUser?.name, c?.assignedUser || "—")}
-                          </div>
-
-                          <div className={styles.itemMeta}>
-                            przegląd: {fmtPL(c?.maintenance?.inspectionDueAt)} · ubezpieczenie:{" "}
-                            {fmtPL(c?.maintenance?.insuranceDueAt)}
-                          </div>
-
-                          <div className={styles.itemMeta}>
-                            fleetCard.shellCardPinEncrypted: <code>{safe(c?.fleetCard?.shellCardPinEncrypted)}</code>
-                          </div>
+                          <div className={styles.itemTitle}>{safe(u.name)}</div>
+                          <div className={styles.itemMeta}>· aktywny: {String(!!u.isActive)} ·</div>
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  {!selectedCarId || !draftCar ? (
-                    <div className={styles.muted}>Wybierz auto z listy.</div>
-                  ) : (
-                    <>
-                      <div className={styles.actionsRow}>
-                        <button onClick={() => saveWhole("cars")} disabled={busy} className={styles.btnPrimary}>
-                          ZAPISZ ZMIANY (wszystkie pola)
-                        </button>
-                      </div>
-
-                      <DynamicEditor
-                        rootValue={draftCar}
-                        currentPath=""
-                        label="Auto"
-                        disabled={busy}
-                        entityType="cars"
-                        userOptions={userOptions}
-                        onRootChange={setDraftCar}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "RENTALS" && (
-            <div className={styles.box}>
-              <h3 className={styles.boxTitle}>WYPOŻYCZENIA — edycja każdego pola + filtrowanie i sortowanie</h3>
-
-              <div className={styles.box} style={{ marginBottom: 16 }}>
-                <h4 className={styles.boxTitle}>Filtry i sortowanie rentals</h4>
-
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldLabel}>
-                    <span>Filtruj po osobie</span>
-                  </div>
-                  <div className={styles.fieldControl}>
-                    <select
-                      className={styles.input}
-                      value={rentalFilterUserId}
-                      onChange={(e) => setRentalFilterUserId(e.target.value)}
-                    >
-                      <option value="">— wszyscy użytkownicy —</option>
-                      {userOptions.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {safe(u.name)} | id: ({u.id})
-                        </option>
                       ))}
-                    </select>
+                    </div>
                   </div>
-                </div>
 
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldLabel}>
-                    <span>Filtruj po pojeździe</span>
-                  </div>
-                  <div className={styles.fieldControl}>
-                    <select
-                      className={styles.input}
-                      value={rentalFilterCarId}
-                      onChange={(e) => setRentalFilterCarId(e.target.value)}
-                    >
-                      <option value="">— wszystkie pojazdy —</option>
-                      {carOptions.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)} | id: ({c.id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldLabel}>
-                    <span>Wyszukiwanie tekstowe</span>
-                  </div>
-                  <div className={styles.fieldControl}>
-                    <input
-                      className={styles.input}
-                      value={rentalSearchText}
-                      onChange={(e) => setRentalSearchText(e.target.value)}
-                      placeholder="np. Kowalski, WX12345, Toyota, ACTIVE..."
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldLabel}>
-                    <span>Sortuj po</span>
-                  </div>
-                  <div className={styles.fieldControl}>
-                    <select
-                      className={styles.input}
-                      value={rentalSortBy}
-                      onChange={(e) => setRentalSortBy(e.target.value)}
-                    >
-                      {RENTAL_SORT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.fieldRow}>
-                  <div className={styles.fieldLabel}>
-                    <span>Kierunek sortowania</span>
-                  </div>
-                  <div className={styles.fieldControl}>
-                    <select
-                      className={styles.input}
-                      value={rentalSortDir}
-                      onChange={(e) => setRentalSortDir(e.target.value)}
-                    >
-                      <option value="asc">Rosnąco</option>
-                      <option value="desc">Malejąco</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.actionsRow}>
-                  <button onClick={resetRentalFiltersAndSort} className={styles.btnSecondary}>
-                    Reset filtrów i sortowania
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.gridRentals}>
-                <div className={styles.listCard}>
-                  <div className={styles.listHeader}>Lista Wypożyczeń ({visibleRentals.length})</div>
-                  <div className={styles.listBody}>
-                    {visibleRentals.length === 0 ? (
-                      <div className={styles.muted}>Brak wyników dla aktualnych filtrów.</div>
+                  <div>
+                    {!selectedUserId || !draftUser ? (
+                      <div className={styles.muted}>Wybierz użytkownika z listy.</div>
                     ) : (
-                      visibleRentals.map((r) => {
-                        const car = carsById.get(r.carId);
-                        const borrowedUser = usersById.get(r.borrowedByUserId);
-                        const returnedUser = usersById.get(r.returnedByUserId);
-                        const type = (r.type || "").toUpperCase();
-                        const status = (r.status || "").toUpperCase();
-                        const activeLabel =
-                          status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
-
-                        return (
-                          <button
-                            key={r.id}
-                            onClick={() => selectRental(r.id)}
-                            className={listItemClass(selectedRentalId === r.id)}
-                          >
-                            <div className={styles.itemTitle}>
-                              [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)} — {safe(car?.make)}{" "}
-                              {safe(car?.model)}
-                            </div>
-
-                            <div className={styles.itemMeta}>
-                              · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · koniec: {fmtPL(r.endAt)}
-                            </div>
-
-                            <div className={styles.itemMeta}>
-                              user: {safe(borrowedUser?.name, r.borrowedByUserId)}
-                              {r?.returnedByUserId ? ` · zwrócił: ${safe(returnedUser?.name, r.returnedByUserId)}` : ""}
-                            </div>
-
-                            <div className={styles.itemMeta}>
-                              olej: {fmtPL(car?.maintenance?.lastOilServiceAt)} · ubezpieczenie:{" "}
-                              {fmtPL(car?.maintenance?.insuranceDueAt)} · przegląd:{" "}
-                              {fmtPL(car?.maintenance?.inspectionDueAt)}
-                            </div>
+                      <>
+                        <div className={styles.actionsRow}>
+                          <button onClick={() => saveWhole("users")} disabled={busy} className={styles.btnPrimary}>
+                            Zapisz USER (wszystkie pola)
                           </button>
-                        );
-                      })
+
+                          <button onClick={resetPinQuick} disabled={busy} className={styles.btnSecondary}>
+                            Szybka zmiana PIN
+                          </button>
+                        </div>
+
+                        <div className={styles.box} style={{ marginTop: 12 }}>
+                          <h4 className={styles.boxTitle}>Zmiana PIN użytkownika</h4>
+
+                          <div className={styles.fieldRow}>
+                            <div className={styles.fieldLabel}>
+                              <span>Aktualny hash PIN (MD5)</span>
+                              <span className={styles.fieldMeta}>readonly</span>
+                            </div>
+                            <div className={styles.fieldControl}>
+                              <input
+                                className={styles.input}
+                                value={draftUser?.pin?.hashMd5 || ""}
+                                disabled
+                                readOnly
+                              />
+                            </div>
+                          </div>
+
+                          <div className={styles.fieldRow}>
+                            <div className={styles.fieldLabel}>
+                              <span>Nowy PIN (4–8 cyfr)</span>
+                            </div>
+                            <div className={styles.fieldControl}>
+                              <input
+                                className={styles.input}
+                                type="password"
+                                value={userPlainPin}
+                                onChange={(e) => setUserPlainPin(e.target.value)}
+                                placeholder="np. 1234"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                disabled={busy}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <DynamicEditor
+                          rootValue={draftUser}
+                          currentPath=""
+                          label="Użytkownik"
+                          disabled={busy}
+                          entityType="users"
+                          userOptions={userOptions}
+                          onRootChange={setDraftUser}
+                        />
+                      </>
                     )}
                   </div>
                 </div>
+              </div>
+            )}
 
-                <div>
-                  {!selectedRentalId || !draftRental ? (
-                    <div className={styles.muted}>Wybierz wypożyczenie / rezerwację z listy.</div>
-                  ) : (
-                    <>
-                      <div className={styles.actionsRow}>
-                        <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
-                          Zapisz Zmiany (wszystkie pola)
-                        </button>
-                      </div>
+            {activeTab === "CARS" && (
+              <div className={styles.box}>
+                <h3 className={styles.boxTitle}>CARS — edycja każdego pola</h3>
 
-                      <DynamicEditor
-                        rootValue={draftRental}
-                        currentPath=""
-                        label="Wypożyczenie"
-                        disabled={busy}
-                        entityType="rentals"
-                        userOptions={userOptions}
-                        onRootChange={setDraftRental}
-                      />
-                    </>
-                  )}
+                <div className={styles.gridCars}>
+                  <div className={styles.listCard}>
+                    <div className={styles.listHeader}>Lista cars</div>
+                    <div className={styles.listBody}>
+                      {cars.map((c) => {
+                        const assignedUser = usersById.get(c?.assignedUser);
+
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => selectCar(c.id)}
+                            className={listItemClass(selectedCarId === c.id)}
+                          >
+                            <div className={styles.itemTitle}>
+                              {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              id: {c.id} · status: {safe(c.status)} · zarchiwizowane: {String(!!c.isArchived)}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              przypisany użytkownik: {safe(assignedUser?.name, c?.assignedUser || "—")}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              przegląd: {fmtPL(c?.maintenance?.inspectionDueAt)} · ubezpieczenie:{" "}
+                              {fmtPL(c?.maintenance?.insuranceDueAt)}
+                            </div>
+
+                            <div className={styles.itemMeta}>
+                              fleetCard.shellCardPinEncrypted: <code>{safe(c?.fleetCard?.shellCardPinEncrypted)}</code>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    {!selectedCarId || !draftCar ? (
+                      <div className={styles.muted}>Wybierz auto z listy.</div>
+                    ) : (
+                      <>
+                        <div className={styles.actionsRow}>
+                          <button onClick={() => saveWhole("cars")} disabled={busy} className={styles.btnPrimary}>
+                            ZAPISZ ZMIANY (wszystkie pola)
+                          </button>
+                        </div>
+
+                        <DynamicEditor
+                          rootValue={draftCar}
+                          currentPath=""
+                          label="Auto"
+                          disabled={busy}
+                          entityType="cars"
+                          userOptions={userOptions}
+                          onRootChange={setDraftCar}
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
+            )}
 
-      <div className={styles.footerNote}>
-        PODSUMOWANIE ILOŚCI DANYCH: users={users.length}, cars={cars.length}, rentals={rentals.length}
+            {activeTab === "RENTALS" && (
+              <div className={styles.box}>
+                <h3 className={styles.boxTitle}>WYPOŻYCZENIA — edycja każdego pola + filtrowanie i sortowanie</h3>
+
+                <div className={styles.box} style={{ marginBottom: 16 }}>
+                  <h4 className={styles.boxTitle}>Filtry i sortowanie rentals</h4>
+
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                      <span>Filtruj po osobie</span>
+                    </div>
+                    <div className={styles.fieldControl}>
+                      <select
+                        className={styles.input}
+                        value={rentalFilterUserId}
+                        onChange={(e) => setRentalFilterUserId(e.target.value)}
+                      >
+                        <option value="">— wszyscy użytkownicy —</option>
+                        {userOptions.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {safe(u.name)} | id: ({u.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                      <span>Filtruj po pojeździe</span>
+                    </div>
+                    <div className={styles.fieldControl}>
+                      <select
+                        className={styles.input}
+                        value={rentalFilterCarId}
+                        onChange={(e) => setRentalFilterCarId(e.target.value)}
+                      >
+                        <option value="">— wszystkie pojazdy —</option>
+                        {carOptions.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {safe(c.plateNumber)} — {safe(c.make)} {safe(c.model)} | id: ({c.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                      <span>Wyszukiwanie tekstowe</span>
+                    </div>
+                    <div className={styles.fieldControl}>
+                      <input
+                        className={styles.input}
+                        value={rentalSearchText}
+                        onChange={(e) => setRentalSearchText(e.target.value)}
+                        placeholder="np. Kowalski, WX12345, Toyota, ACTIVE..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                      <span>Sortuj po</span>
+                    </div>
+                    <div className={styles.fieldControl}>
+                      <select
+                        className={styles.input}
+                        value={rentalSortBy}
+                        onChange={(e) => setRentalSortBy(e.target.value)}
+                      >
+                        {RENTAL_SORT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                      <span>Kierunek sortowania</span>
+                    </div>
+                    <div className={styles.fieldControl}>
+                      <select
+                        className={styles.input}
+                        value={rentalSortDir}
+                        onChange={(e) => setRentalSortDir(e.target.value)}
+                      >
+                        <option value="asc">Rosnąco</option>
+                        <option value="desc">Malejąco</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.actionsRow}>
+                    <button onClick={resetRentalFiltersAndSort} className={styles.btnSecondary}>
+                      Reset filtrów i sortowania
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.gridRentals}>
+                  <div className={styles.listCard}>
+                    <div className={styles.listHeader}>Lista Wypożyczeń ({visibleRentals.length})</div>
+                    <div className={styles.listBody}>
+                      {visibleRentals.length === 0 ? (
+                        <div className={styles.muted}>Brak wyników dla aktualnych filtrów.</div>
+                      ) : (
+                        visibleRentals.map((r) => {
+                          const car = carsById.get(r.carId);
+                          const borrowedUser = usersById.get(r.borrowedByUserId);
+                          const returnedUser = usersById.get(r.returnedByUserId);
+                          const type = (r.type || "").toUpperCase();
+                          const status = (r.status || "").toUpperCase();
+                          const activeLabel =
+                            status === "ACTIVE" && (r.endAt === null || r.endAt === undefined) ? "AKTYWNE" : "HISTORIA";
+
+                          return (
+                            <button
+                              key={r.id}
+                              onClick={() => selectRental(r.id)}
+                              className={listItemClass(selectedRentalId === r.id)}
+                            >
+                              <div className={styles.itemTitle}>
+                                [{type}] {activeLabel} — {safe(car?.plateNumber, r.carId)} — {safe(car?.make)}{" "}
+                                {safe(car?.model)}
+                              </div>
+
+                              <div className={styles.itemMeta}>
+                                · status: {safe(r.status)} · start: {fmtPL(r.startAt)} · koniec: {fmtPL(r.endAt)}
+                              </div>
+
+                              <div className={styles.itemMeta}>
+                                user: {safe(borrowedUser?.name, r.borrowedByUserId)}
+                                {r?.returnedByUserId ? ` · zwrócił: ${safe(returnedUser?.name, r.returnedByUserId)}` : ""}
+                              </div>
+
+                              <div className={styles.itemMeta}>
+                                olej: {fmtPL(car?.maintenance?.lastOilServiceAt)} · ubezpieczenie:{" "}
+                                {fmtPL(car?.maintenance?.insuranceDueAt)} · przegląd:{" "}
+                                {fmtPL(car?.maintenance?.inspectionDueAt)}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    {!selectedRentalId || !draftRental ? (
+                      <div className={styles.muted}>Wybierz wypożyczenie / rezerwację z listy.</div>
+                    ) : (
+                      <>
+                        <div className={styles.actionsRow}>
+                          <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
+                            Zapisz Zmiany (wszystkie pola)
+                          </button>
+                        </div>
+
+                        <DynamicEditor
+                          rootValue={draftRental}
+                          currentPath=""
+                          label="Wypożyczenie"
+                          disabled={busy}
+                          entityType="rentals"
+                          userOptions={userOptions}
+                          onRootChange={setDraftRental}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className={styles.footerNote}>
+          PODSUMOWANIE ILOŚCI DANYCH: users={users.length}, cars={cars.length}, rentals={rentals.length}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

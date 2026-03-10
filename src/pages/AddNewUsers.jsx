@@ -3,6 +3,7 @@ import { database, ref, set, push, get } from "../FirebaseConfig";
 import md5 from "blueimp-md5";
 import styles from "./AddNewUsers.module.css";
 import Navbar from './Navbar';
+import useRequireSuperAdmin from "./useRequireSuperAdmin";
 
 
 function randomSalt(len = 10) {
@@ -123,6 +124,8 @@ export default function AddNewUsers() {
       setSaving(false);
     }
   }
+
+  useRequireSuperAdmin();
 
   return (
     <div className={styles.wrapper}>

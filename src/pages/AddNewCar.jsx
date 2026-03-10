@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, set, push, get } from "../FirebaseConfig";
 import styles from "./AddNewCar.module.css";
 import Navbar from "./Navbar";
+import useRequireSuperAdmin from "./useRequireSuperAdmin";
 
 // Pomocnicze: zamiana wartości z <input type="date"> na ISO (UTC)
 function dateToIsoOrNull(dateStr) {
@@ -279,6 +280,8 @@ export default function AddNewCar() {
       setSaving(false);
     }
   }
+
+  useRequireSuperAdmin();
 
   return (
     <div className={styles.wrapper}>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { database, ref, onValue } from "../FirebaseConfig";
 import styles from "./ShowAllCars.module.css";
 import Navbar from "./Navbar";
+import useRequireSuperAdmin from "./useRequireSuperAdmin";
 
 // --- Funkcje pomocnicze ---
 function safe(v, fallback = "—") {
@@ -124,7 +125,7 @@ export default function ShowAllCars() {
   }, [cars, selectedIds]);
 
   const loading = loadingCars || loadingUsers;
-
+  useRequireSuperAdmin();
   return (
     <div className={styles.wrapper}>
       <Navbar />
