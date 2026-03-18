@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import md5 from "blueimp-md5";
-import { database, ref, onValue, set } from "../FirebaseConfig";
+import { database, ref, onValue, set, remove } from "../FirebaseConfig";
 import styles from "./AdminCars.module.css";
 import Navbar from "./Navbar";
 
@@ -1099,6 +1099,35 @@ export default function AdminCars() {
     }
   }
 
+  async function deleteRental() {
+    if (!selectedRentalId || !draftRental) return;
+
+    const confirmDelete = window.confirm(
+      `Czy na pewno chcesz usunąć rezerwację/wypożyczenie o ID: ${selectedRentalId}?\n\nTej operacji nie można cofnąć.`
+    );
+
+    if (!confirmDelete) return;
+
+    setBusy(true);
+    setMsg(null);
+
+    try {
+      await remove(ref(database, `rentals/${selectedRentalId}`));
+      
+      setMessage("ok", `Rezerwacja ${selectedRentalId} została usunięta.`);
+      
+      // Wyczyść zaznaczenie po usunięciu
+      setSelectedRentalId("");
+      setDraftRental(null);
+      
+    } catch (e) {
+      console.error(e);
+      setMessage("error", "Błąd podczas usuwania rezerwacji z bazy.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function fillQuickPin(pinValue) {
     const pin = String(pinValue || "").trim();
 
@@ -1501,10 +1530,29 @@ export default function AdminCars() {
                       <div className={styles.muted}>Wybierz wypożyczenie / rezerwację z listy.</div>
                     ) : (
                       <>
-                        <div className={styles.actionsRow}>
-                          <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
-                            Zapisz Zmiany (wszystkie pola)
-                          </button>
+                        <div style={{ position: 'relative' }}>
+                          <div className={styles.actionsRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <button onClick={() => saveWhole("rentals")} disabled={busy} className={styles.btnPrimary}>
+                              Zapisz Zmiany (wszystkie pola)
+                            </button>
+                            
+                            <button 
+                              onClick={deleteRental} 
+                              disabled={busy} 
+                              className={styles.btnDelete}
+                              style={{ 
+                                backgroundColor: '#dc3545', 
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '4px',
+                                cursor: busy ? 'not-allowed' : 'pointer',
+                                opacity: busy ? 0.65 : 1
+                              }}
+                            >
+                              USUŃ REZERWACJĘ
+                            </button>
+                          </div>
                         </div>
 
                         <DynamicEditor

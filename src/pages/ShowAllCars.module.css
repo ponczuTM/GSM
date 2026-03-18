@@ -398,3 +398,109 @@
     margin-top: 8px;
   }
 }
+
+/* === NOWE STYLE DLA SORTOWANIA === */
+
+/* Separator między sekcjami */
+.divider {
+  border: 0;
+  border-top: 1px solid var(--c-border-light);
+  margin: 20px 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sortControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--c-bg);
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--c-border-light);
+}
+
+.label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--c-text-meta);
+  text-transform: uppercase;
+  margin: 0 8px;
+}
+
+/* Przyciski wyboru pola (Przegląd/Ubezpieczenie) */
+.sortBtn {
+  padding: 8px 16px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sortBtn:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+
+/* Przyciski kierunku (Rosnąco/Malejąco) */
+.dirBtn {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--c-text-meta);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dirBtn:hover {
+  color: var(--c-text);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Stany aktywne dla sortowania */
+.dirActive {
+  background: var(--c-primary) !important;
+  color: #fff !important;
+  box-shadow: var(--c-shadow-sm);
+}
+
+/* Podświetlenie nagłówka aktywnej kolumny w tabeli */
+.highlightedTh {
+  background: var(--c-primary-light) !important;
+  color: var(--c-primary) !important;
+  border-bottom: 2px solid var(--c-primary) !important;
+}
+
+/* RWD dla sortowania */
+@media (max-width: 768px) {
+  .sortControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .group {
+    flex-direction: column;
+    padding: 12px;
+  }
+  
+  .sortBtn, .dirBtn {
+    width: 100%;
+  }
+}

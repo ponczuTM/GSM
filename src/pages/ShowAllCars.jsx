@@ -41,8 +41,12 @@ export default function ShowAllCars() {
   const [loadingCars, setLoadingCars] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
 
-  // Nowy stan do przechowywania ID zaznaczonych samochodów
+  // Filtrowanie po wybranych ID
   const [selectedIds, setSelectedIds] = useState([]);
+
+  // --- NOWE: Stan sterowania sortowaniem ---
+  const [sortBy, setSortBy] = useState(null); // 'inspectionDueAt' | 'insuranceDueAt' | null
+  const [sortDir, setSortDir] = useState("asc"); // 'asc' | 'desc'
 
   const currentUserRole = useMemo(
     () => localStorage.getItem("role") || "ADMIN",
@@ -62,14 +66,7 @@ export default function ShowAllCars() {
           setLoadingCars(false);
           return;
         }
-        const arr = Object.values(val);
-        arr.sort((a, b) => {
-          const aArch = !!a?.isArchived;
-          const bArch = !!b?.isArchived;
-          if (aArch !== bArch) return aArch ? 1 : -1;
-          return (a?.plateNumber || "").localeCompare(b?.plateNumber || "");
-        });
-        setCars(arr);
+        setCars(Object.values(val));
         setLoadingCars(false);
       },
       (err) => {
@@ -110,53 +107,136 @@ export default function ShowAllCars() {
     return () => unsubUsers();
   }, []);
 
-  // Funkcja przełączająca zaznaczenie
   const toggleCarSelection = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  // Logika filtrowania: jeśli nic nie wybrano, pokaż wszystko. 
-  // Jeśli coś wybrano, filtruj po ID.
-  const filteredCars = useMemo(() => {
-    if (selectedIds.length === 0) return cars;
-    return cars.filter((c) => selectedIds.includes(c.id));
-  }, [cars, selectedIds]);
+  // --- Logika Filtrowania i Sortowania ---
+  const processedCars = useMemo(() => {
+    let result = [...cars];
+
+    // 1. Filtrowanie po ID
+    if (selectedIds.length > 0) {
+      result = result.filter((c) => selectedIds.includes(c.id));
+    }
+
+    // 2. Sortowanie
+    if (sortBy) {
+      // Sortowanie dedykowane (Przegląd/Ubezpieczenie)
+      result.sort((a, b) => {
+        const valA = a.maintenance?.[sortBy] || "";
+        const valB = b.maintenance?.[sortBy] || "";
+
+        if (valA === valB) return 0;
+        if (valA === "") return 1;
+        if (valB === "") return -1;
+
+        if (sortDir === "asc") {
+          return valA < valB ? -1 : 1;
+        } else {
+          return valA > valB ? -1 : 1;
+        }
+      });
+    } else {
+      // Domyślne sortowanie (Archiwum na końcu, potem tablice)
+      result.sort((a, b) => {
+        const aArch = !!a?.isArchived;
+        const bArch = !!b?.isArchived;
+        if (aArch !== bArch) return aArch ? 1 : -1;
+        return (a?.plateNumber || "").localeCompare(b?.plateNumber || "");
+      });
+    }
+
+    return result;
+  }, [cars, selectedIds, sortBy, sortDir]);
 
   const loading = loadingCars || loadingUsers;
   useRequireSuperAdmin();
+
   return (
     <div className={styles.wrapper}>
       <Navbar />
       <h2 className={styles.title}>Wszystkie samochody</h2>
 
-      {/* Sekcja przycisków wyboru (Selection Bar) */}
       {!loading && cars.length > 0 && (
         <div className={styles.filterBar}>
-          <p className={styles.filterTitle}>Filtruj samochody (kliknij, aby wybrać):</p>
-          <div className={styles.buttonsContainer}>
-            {cars.map((car) => {
-              const isActive = selectedIds.includes(car.id);
-              return (
+          {/* SEKCJA WYBORU AUTA */}
+          <div className={styles.section}>
+            <p className={styles.filterTitle}>Pokaż tylko wybrane:</p>
+            <div className={styles.buttonsContainer}>
+              {cars.map((car) => (
                 <button
                   key={car.id}
-                  className={`${styles.filterBtn} ${isActive ? styles.btnActive : ""}`}
+                  className={`${styles.filterBtn} ${selectedIds.includes(car.id) ? styles.btnActive : ""}`}
                   onClick={() => toggleCarSelection(car.id)}
                 >
                   <span className={styles.btnMainText}>{car.make} {car.model}</span>
                   <span className={styles.btnSubText}>{car.plateNumber}</span>
                 </button>
-              );
-            })}
-            {selectedIds.length > 0 && (
-              <button 
-                className={styles.clearBtn} 
-                onClick={() => setSelectedIds([])}
-              >
-                Wyczyść filtry
-              </button>
-            )}
+              ))}
+            </div>
+          </div>
+
+          <hr className={styles.divider} />
+
+          {/* SEKCJA SORTOWANIA */}
+          <div className={styles.section}>
+            <p className={styles.filterTitle}>Sortuj według daty:</p>
+            <div className={styles.sortControls}>
+              <div className={styles.group}>
+                <button 
+                  className={`${styles.sortBtn} ${sortBy === 'inspectionDueAt' ? styles.btnActive : ""}`}
+                  onClick={() => setSortBy('inspectionDueAt')}
+                >
+                  Przegląd
+                </button>
+                <button 
+                  className={`${styles.sortBtn} ${sortBy === 'insuranceDueAt' ? styles.btnActive : ""}`}
+                  onClick={() => setSortBy('insuranceDueAt')}
+                >
+                  Ubezpieczenie
+                </button>
+                <button 
+                  className={`${styles.sortBtn} ${!sortBy ? styles.btnActive : ""}`}
+                  onClick={() => setSortBy(null)}
+                >
+                  Brak (Domyślne)
+                </button>
+              </div>
+
+              {sortBy && (
+                <div className={styles.group}>
+                  <span className={styles.label}>Kierunek:</span>
+                  <button 
+                    className={`${styles.dirBtn} ${sortDir === 'asc' ? styles.dirActive : ""}`}
+                    onClick={() => setSortDir('asc')}
+                  >
+                    Rosnąco (najbliższe daty)
+                  </button>
+                  <button 
+                    className={`${styles.dirBtn} ${sortDir === 'desc' ? styles.dirActive : ""}`}
+                    onClick={() => setSortDir('desc')}
+                  >
+                    Malejąco (najdalsze daty)
+                  </button>
+                </div>
+              )}
+              
+              {(selectedIds.length > 0 || sortBy) && (
+                <button 
+                  className={styles.clearBtn} 
+                  onClick={() => {
+                    setSelectedIds([]);
+                    setSortBy(null);
+                    setSortDir("asc");
+                  }}
+                >
+                  Wyczyść wszystko
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -184,8 +264,13 @@ export default function ShowAllCars() {
                 <th className={styles.th}>Na wykup</th>
                 <th className={styles.th}>Przypisany użytkownik</th>
                 <th className={styles.th}>Status dowodu rej.</th>
-                <th className={styles.th}>Przegląd</th>
-                <th className={styles.th}>Ubezpieczenie</th>
+                {/* Podświetlamy nagłówek jeśli sortowanie jest aktywne */}
+                <th className={`${styles.th} ${sortBy === 'inspectionDueAt' ? styles.highlightedTh : ""}`}>
+                  Przegląd {sortBy === 'inspectionDueAt' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </th>
+                <th className={`${styles.th} ${sortBy === 'insuranceDueAt' ? styles.highlightedTh : ""}`}>
+                  Ubezpieczenie {sortBy === 'insuranceDueAt' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </th>
                 <th className={styles.th}>Olej (data)</th>
                 <th className={styles.th}>Olej (km)</th>
                 <th className={styles.th}>Akt. km</th>
@@ -209,7 +294,7 @@ export default function ShowAllCars() {
             </thead>
 
             <tbody>
-              {filteredCars.map((c) => {
+              {processedCars.map((c) => {
                 const m = c?.maintenance || {};
                 const e = c?.equipment || {};
                 const faults = Array.isArray(c?.faults) ? c.faults : [];
